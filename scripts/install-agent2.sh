@@ -21,7 +21,7 @@ zabbixarchive=$(basename "$zabbixurl")
 srcdir="/usr/local/src"
 
 # Zabbix agent configuration
-zabbixconf="/usr/local/etc/zabbix_agebt2.conf"
+zabbixconf="/usr/local/etc/zabbix_agent2.conf"
 
 # Zabbix host
 zabbixhost="192.168.1.69"
