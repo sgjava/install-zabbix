@@ -31,7 +31,7 @@ with configuration prior to doing final install.
 
 ## Move DB script
 This assumes you ran install.sh above. It's handy to move the MySQL data directory
-to a NFS share if you are running Zabbix Server off an SD card for instance. This
+to a NFS share if you are running Zabbix Server off an SD card for instance.
 * `cd ~/install-zabbix`
 * Change configuration values as needed
 * `./movedb.sh`
