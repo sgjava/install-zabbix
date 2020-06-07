@@ -5,7 +5,7 @@ Install Zabbix is s set of scripts to install Zabbix 5.x from source on Ubuntu
 various methods to install Zabbix Server, but this method gives you the ultimate
 flexibility. In addition, there are no deb packages for ARM based platforms hence
 building from source is the only method. The scripts allow:
-* Install and securing MySQL server
+* Install and secure MySQL server
 * Import Zabbix data into MySQL
 * Install Java 11 JDK for the Java gateway
 * Install Zabbix Server
