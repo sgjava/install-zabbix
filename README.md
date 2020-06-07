@@ -39,7 +39,7 @@ to a NFS share if you are running Zabbix Server off an SD card for instance.
 
 ## Install Agent 2 script
 Install Zabbix Agent 2 script on client. Make sure to change configuration to point to
-you Zabbix server before running. You can always configure manually should you forget. 
+your Zabbix server before running. You can always configure manually should you forget. 
 * `cd ~/install-zabbix`
 * Change configuration values as needed
 * `./install-agent2.sh`
