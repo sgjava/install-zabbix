@@ -65,8 +65,8 @@ cd "${srcdir}/${filename}" >> $logfile 2>&1
 sudo -E ./configure --enable-agent2 --prefix=/usr/local >> $logfile 2>&1
 sudo -E make install >> $logfile 2>&1
 # Configure Zabbix agent 2
-sudo -E sed -i "s/Server=127.0.0.1/Server=$zabbixhost/g" "$zabbixconf" >> $logfile 2>&1
-sudo -E sed -i "s/ServerActive=127.0.0.1/ServerActive=$zabbixhost/g" "$zabbixconf" >> $logfile 2>&1
+sudo -E sed -i "s|Server=127.0.0.1|Server=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
+sudo -E sed -i "s|ServerActive=127.0.0.1|ServerActive=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
 
 # Install Zabbix agent 2 service
 log "Installing Zabbix Agent 2 Service..."
