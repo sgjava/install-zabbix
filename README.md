@@ -37,6 +37,13 @@ to a NFS share if you are running Zabbix Server off an SD card for instance.
 * `./movedb.sh`
 * Check log file for errors
 
+If you plan on using a NFS mount for your MySQL data directory you will need to
+do the following:
+* `sudo nano /etc/systemd/system/multi-user.target.wants/mysql.service`
+* Add `remote-fs.target` to `After`
+* Add `RequiresMountsFor=/your/mount/dir` to `[Unit]` section
+* `sudo systemctl daemon-reload`
+
 ## Install Agent 2 script
 Install Zabbix Agent 2 script on client. Make sure to change configuration to point to
 your Zabbix server before running. You can always configure manually should you forget. 
