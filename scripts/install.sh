@@ -138,7 +138,7 @@ sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < data.sql >> $logfile 2>
 
 # Install webserver
 log "Installing Apache and PHP..."
-sudo -E apt-get -y install apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap mlocate >> $logfile 2>&1
+sudo -E apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap mlocate >> $logfile 2>&1
 sudo -E updatedb >> $logfile 2>&1
 # Get php.ini file location
 phpini=$(locate php.ini 2>&1 | head -n 1)
