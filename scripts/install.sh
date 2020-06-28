@@ -162,6 +162,10 @@ cd "${srcdir}/${filename}" >> $logfile 2>&1
 sudo -E ./configure --enable-server --enable-agent --enable-agent2 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
 sudo -E make install >> $logfile 2>&1
 # Configure Zabbix server
+sudo -E chmod ug+s /usr/bin/fping
+sudo -E chmod ug+s /usr/bin/fping6
+sudo -E sed -i "s|# FpingLocation=/usr/sbin/fping|FpingLocation=/usr/bin/fping|g" "$zabbixconf" >> $logfile 2>&1
+sudo -E sed -i "s|# Fping6Location=/usr/sbin/fping6|Fping6Location=/usr/bin/fping6|g" "$zabbixconf" >> $logfile 2>&1
 sudo -E sed -i "s/# DBPassword=/DBPassword=$dbzabbix/g" "$zabbixconf" >> $logfile 2>&1
 
 # Install Zabbix server service
