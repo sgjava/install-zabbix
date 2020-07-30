@@ -152,8 +152,12 @@ sudo -E service apache2 restart >> $logfile 2>&1
 
 # Install Zabbix
 log "Installing Zabbix Server..."
-sudo -E groupadd zabbix >> $logfile 2>&1
-sudo -E useradd -g zabbix -s /bin/bash zabbix >> $logfile 2>&1
+# Create group and user
+sudo -E addgroup --system --quiet zabbix >> $logfile 2>&1
+sudo -E adduser --quiet --system --disabled-login --ingroup zabbix --home /var/lib/zabbix --no-create-home zabbix >> $logfile 2>&1
+# Create user home
+sudo -E mkdir -m u=rwx,g=rwx,o= -p /var/lib/zabbix >> $logfile 2>&1
+sudo -E chown zabbix:zabbix /var/lib/zabbix >> $logfile 2>&1
 sudo -E apt-get -y install build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang >> $logfile 2>&1
 sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre3-dev >> $logfile 2>&1
 sudo -E apt-get -y install libldap2-dev libiksemel-dev libcurl4-openssl-dev libgnutls28-dev >> $logfile 2>&1
