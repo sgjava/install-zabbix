@@ -4,8 +4,9 @@
 #
 # @author: sgoldsmith
 #
-# Install dependencies, mysql, Zabbix Server 5.x, Zabbix Agent, Zabbix Agent 2
-# on Ubuntu 20.04. This may work on other versions and Debian like distributions.
+# Install dependencies, mysql, Zabbix Server 5.x and Zabbix Agent 2 on Ubuntu
+# 20.04. This may work on other versions and Debian like distributions.
+#
 # Change variables below to suit your needs.
 #
 # Steven P. Goldsmith
@@ -17,6 +18,9 @@ dbroot="rootZaq!2wsx"
 
 # Zabbix user MySQL password
 dbzabbix="zabbixZaq!2wsx"
+
+# MySQL database monitoring user
+monzabbix="monzabbixZaq!2wsx"
 
 # Zabbix Server URL
 zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.0/zabbix-5.0.2.tar.gz"
@@ -57,7 +61,7 @@ mkdir -p "$tmpdir" >> $logfile 2>&1
 log "Installing MySQL..."
 sudo -E apt-get -y update >> $logfile 2>&1
 sudo -E apt-get -y install mysql-server mysql-client >> $logfile 2>&1
-# Secure MySQL and create Zabbix DB
+# Secure MySQL, create zabbix DB, zabbix user and zbx_monitor user.
 sudo -E mysql --user=root <<_EOF_
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DELETE FROM mysql.user WHERE User='';
@@ -67,6 +71,8 @@ DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
 CREATE USER 'zabbix'@'%' IDENTIFIED BY '${dbzabbix}';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'%';
+CREATE USER 'zbx_monitor'@'%' IDENTIFIED BY '${monzabbix}';
+GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_monitor'@'%';
 FLUSH PRIVILEGES;
 _EOF_
 
@@ -135,6 +141,13 @@ cd "${srcdir}/${filename}/database/mysql" >> $logfile 2>&1
 sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < schema.sql >> $logfile 2>&1
 sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < images.sql >> $logfile 2>&1
 sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < data.sql >> $logfile 2>&1
+# Insert macro values to monitor 'Zabbix server' MySQL DB (just add 'Template DB MySQL by Zabbix agent 2')
+sudo -E mysql --user=root <<_EOF_
+USE zabbix;
+INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.DSN}', '', 'MySQL Data Source Name', 0 FROM hosts WHERE host = 'Zabbix server'; 
+INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.USER}', 'zbx_monitor', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server'; 
+INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.PASSWORD}', 'monzabbixZaq!2wsx', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server';
+_EOF_
 
 # Install webserver
 log "Installing Apache and PHP..."
@@ -163,13 +176,15 @@ sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libs
 sudo -E apt-get -y install libldap2-dev libiksemel-dev libcurl4-openssl-dev libgnutls28-dev >> $logfile 2>&1
 cd "${srcdir}/${filename}" >> $logfile 2>&1
 # Cnange configuration options here
-sudo -E ./configure --enable-server --enable-agent --enable-agent2 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
+sudo -E ./configure --enable-server --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
 sudo -E make install >> $logfile 2>&1
 # Configure Zabbix server
 sudo -E chmod ug+s /usr/bin/fping
 sudo -E chmod ug+s /usr/bin/fping6
-sudo -E sed -i "s|# FpingLocation=/usr/sbin/fping|FpingLocation=/usr/bin/fping|g" "$zabbixconf" >> $logfile 2>&1
 sudo -E sed -i "s/# DBPassword=/DBPassword=$dbzabbix/g" "$zabbixconf" >> $logfile 2>&1
+sudo -E sed -i "s|# FpingLocation=/usr/sbin/fping|FpingLocation=/usr/bin/fping|g" "$zabbixconf" >> $logfile 2>&1
+sudo -E sed -i "s|# Fping6Location=/usr/sbin/fping6|Fping6Location=/usr/bin/fping6|g" "$zabbixconf" >> $logfile 2>&1
+sudo -E sed -i "s/# StartPingers=1/StartPingers=10/g" "$zabbixconf" >> $logfile 2>&1
 
 # Install Zabbix server service
 log "Installing Zabbix Server Service..."

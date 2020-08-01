@@ -9,10 +9,13 @@ building from source is the only method. The scripts allow:
 * Import Zabbix data into MySQL
 * Install Java 11 JDK for the Java gateway
 * Install Zabbix Server
+* Configures macros for local MySQL monitoring (just add 'Template DB MySQL by Zabbix agent 2' template to 'Zabbix server')
 * Instal Zabbix Agent 2
-* Create systemd services for both Zabbix Server and Agent
+* Create systemd services for both Zabbix Server and Agent 2
 * Move MySQL data directory (optional)
 * Install Zabbix Agent 2 on clients (optional)
+
+More [configuration](https://techexpert.tips/category/zabbix) options!
 
 ## Download project
 * `cd ~/`
@@ -25,7 +28,7 @@ with configuration prior to doing final install.
 * Change configuration values as needed
 * `./install.sh`
 * Check log file for errors
-* Navigate to http://host/zabbix
+* Navigate to http://hostname/zabbix
 * Get DB password from script and finalize front end configuration
 * Login using Admin/zabbix
 
