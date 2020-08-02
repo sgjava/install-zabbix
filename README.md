@@ -35,7 +35,7 @@ with configuration prior to doing final install.
 ## Move DB script
 This assumes you ran install.sh above. It's handy to move the MySQL data directory
 to a NFS share if you are running Zabbix Server off an SD card for instance.
-* `cd ~/install-zabbix`
+* `cd ~/install-zabbix/scripts`
 * Change configuration values as needed
 * `./movedb.sh`
 * Check log file for errors
@@ -50,7 +50,7 @@ do the following:
 ## Install Agent 2 script
 Install Zabbix Agent 2 script on client. Make sure to change configuration to point to
 your Zabbix server before running. You can always configure manually should you forget. 
-* `cd ~/install-zabbix`
+* `cd ~/install-zabbix/scripts`
 * Change configuration values as needed
 * `./install-agent2.sh`
 * Check log file for errors
