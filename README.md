@@ -24,7 +24,7 @@ More [configuration](https://techexpert.tips/category/zabbix) options!
 ## Install script
 This assumes a fresh OS install. You should try the scripts out on a VM to play
 with configuration prior to doing final install.
-* `cd ~/install-zabbix`
+* `cd ~/install-zabbix/scripts`
 * Change configuration values as needed
 * `./install.sh`
 * Check log file for errors
