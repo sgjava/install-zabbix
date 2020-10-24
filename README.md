@@ -46,6 +46,7 @@ do the following:
 * Add `remote-fs.target` to `After`
 * Add `RequiresMountsFor=/your/mount/dir` to `[Unit]` section
 * `sudo systemctl daemon-reload`
+These changes can be removed during `apt upgrade`, so if you see mysql fail to start after reboot add service changes back in. 
 
 ## Install Agent 2 script
 Install Zabbix Agent 2 script on client. Make sure to change configuration to point to
