@@ -55,11 +55,15 @@ filename="${zabbixarchive%.*}"
 filename="${filename%.*}"
 sudo -E mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
 
+# Use latest golang
+log "Adding Go repository..."
+sudo -E  add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
+sudo -E apt update >> $logfile 2>&1
 # Install Zabbix Agent 2
 log "Installing Zabbix Agent 2..."
 sudo -E groupadd zabbix >> $logfile 2>&1
 sudo -E useradd -g zabbix -s /bin/bash zabbix >> $logfile 2>&1
-sudo -E apt-get -y install build-essential pkg-config libpcre3-dev libz-dev golang >> $logfile 2>&1
+sudo -E apt-get -y install build-essential pkg-config libpcre3-dev libz-dev golang-go >> $logfile 2>&1
 cd "${srcdir}/${filename}" >> $logfile 2>&1
 # Cnange configuration options here
 sudo -E ./configure --enable-agent2 --prefix=/usr/local >> $logfile 2>&1
