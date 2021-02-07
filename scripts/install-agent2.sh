@@ -57,7 +57,7 @@ sudo -E mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
 
 # Use latest golang
 log "Adding Go repository..."
-sudo -E  add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
+sudo -E add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
 sudo -E apt update >> $logfile 2>&1
 # Install Zabbix Agent 2
 log "Installing Zabbix Agent 2..."
