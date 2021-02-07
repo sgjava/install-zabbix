@@ -23,7 +23,7 @@ dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.0/zabbix-5.0.4.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.0/zabbix-5.0.8.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
@@ -81,16 +81,16 @@ javahome=/usr/lib/jvm/jdk11
 export javahome
 # ARM 32
 if [ "$arch" = "armv7l" ]; then
-	jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu11.41.75-ca-jdk11.0.8-linux_aarch32hf.tar.gz"
+	jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu11.45.27-ca-jdk11.0.10-linux_aarch32hf.tar.gz"
 # ARM 64
 elif [ "$arch" = "aarch64" ]; then
-	jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu11.41.75-ca-jdk11.0.8-linux_aarch64.tar.gz"
+	jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu11.45.27-ca-jdk11.0.10-linux_aarch64.tar.gz"
 # X86_32
 elif [ "$arch" = "i586" ] || [ "$arch" = "i686" ]; then
-	jdkurl="https://cdn.azul.com/zulu/bin/zulu11.41.23-ca-jdk11.0.8-linux_i686.tar.gz"
+	jdkurl="https://cdn.azul.com/zulu/bin/zulu11.45.27-ca-jdk11.0.10-linux_i686.tar.gz"
 # X86_64	
 elif [ "$arch" = "x86_64" ]; then
-    jdkurl="https://cdn.azul.com/zulu/bin/zulu11.41.23-ca-jdk11.0.8-linux_x64.tar.gz"
+    jdkurl="https://cdn.azul.com/zulu/bin/zulu11.45.27-ca-jdk11.0.10-linux_x64.tar.gz"
 fi
 # Just JDK archive name
 jdkarchive=$(basename "$jdkurl")
