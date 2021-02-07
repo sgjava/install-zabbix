@@ -30,7 +30,7 @@ zabbixhost="192.168.1.69"
 tmpdir="$HOME/temp"
 
 # stdout and stderr for commands logged
-logfile="$PWD/install.log"
+logfile="$PWD/install-agent2.log"
 rm -f $logfile
 
 # Simple logger
