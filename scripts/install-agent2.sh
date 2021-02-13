@@ -65,6 +65,9 @@ sudo -E groupadd zabbix >> $logfile 2>&1
 sudo -E useradd -g zabbix -s /bin/bash zabbix >> $logfile 2>&1
 sudo -E apt-get -y install build-essential pkg-config libpcre3-dev libz-dev golang-go >> $logfile 2>&1
 cd "${srcdir}/${filename}" >> $logfile 2>&1
+# Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
+log "Patching source to work on 32 bit platforms..."
+sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> $logfile 2>&1
 # Cnange configuration options here
 sudo -E ./configure --enable-agent2 --prefix=/usr/local >> $logfile 2>&1
 sudo -E make install >> $logfile 2>&1
