@@ -1,6 +1,6 @@
 ![Title](images/title.png)
 
-Install Zabbix is a set of scripts to install Zabbix 5.x from source on Ubuntu
+Install Zabbix is a set of scripts to install Zabbix 5.4.x from source on Ubuntu
 20.04 and probably other Debian derived distributions. You can of course use
 various methods to install Zabbix Server, but this method gives you the ultimate
 flexibility. In addition, there are no deb packages for ARM based platforms hence
