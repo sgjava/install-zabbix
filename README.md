@@ -8,6 +8,7 @@ building from source is the only method. The scripts allow:
 * Install and secure MySQL server
 * Import Zabbix data into MySQL
 * Install Java 11 JDK for the Java gateway
+* Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
 * Install Zabbix Server
 * Configures macros for local MySQL monitoring (just add 'Template DB MySQL by Zabbix agent 2' template to 'Zabbix server')
 * Instal Zabbix Agent 2
