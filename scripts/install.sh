@@ -4,7 +4,7 @@
 #
 # @author: sgoldsmith
 #
-# Install dependencies, mysql, Zabbix Server 5.x and Zabbix Agent 2 on Ubuntu
+# Install dependencies, mysql, Zabbix Server 5.4.x and Zabbix Agent 2 on Ubuntu
 # 20.04. This may work on other versions and Debian like distributions.
 #
 # Change variables below to suit your needs.
@@ -23,7 +23,7 @@ dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.0/zabbix-5.0.9.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.4/zabbix-5.4.0.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
