@@ -23,7 +23,7 @@ dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.4/zabbix-5.4.0.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.4/zabbix-5.4.2.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
