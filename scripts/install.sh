@@ -23,7 +23,7 @@ dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.4/zabbix-5.4.2.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/5.4/zabbix-5.4.5.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
@@ -76,22 +76,24 @@ GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_m
 FLUSH PRIVILEGES;
 _EOF_
 
-# JDK stuff
-javahome=/usr/lib/jvm/jdk11
-export javahome
+#Default JDK
+javahome=/usr/lib/jvm/jdk17
 # ARM 32
 if [ "$arch" = "armv7l" ]; then
-	jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu11.48.21-ca-jdk11.0.11-linux_aarch32hf.tar.gz"
+    jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu11.50.19-ca-jdk11.0.12-linux_aarch32hf.tar.gz"
+    #  No JDK 17 for ARM32
+    javahome=/usr/lib/jvm/jdk11
 # ARM 64
 elif [ "$arch" = "aarch64" ]; then
-	jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu11.48.21-ca-jdk11.0.11-linux_aarch64.tar.gz"
+    jdkurl="https://cdn.azul.com/zulu/bin/zulu17.28.13-ca-jdk17.0.0-linux_aarch64.tar.gz"
 # X86_32
 elif [ "$arch" = "i586" ] || [ "$arch" = "i686" ]; then
-	jdkurl="https://cdn.azul.com/zulu/bin/zulu11.48.21-ca-jdk11.0.11-linux_i686.tar.gz"
+    jdkurl="https://cdn.azul.com/zulu/bin/zulu17.28.13-ca-jdk17.0.0-linux_i686.tar.gz"
 # X86_64	
 elif [ "$arch" = "x86_64" ]; then
-    jdkurl="https://cdn.azul.com/zulu/bin/zulu11.48.21-ca-jdk11.0.11-linux_x64.tar.gz"
+    jdkurl="https://cdn.azul.com/zulu/bin/zulu17.28.13-ca-jdk17.0.0-linux_x64.tar.gz"
 fi
+export javahome
 # Just JDK archive name
 jdkarchive=$(basename "$jdkurl")
 
@@ -115,14 +117,14 @@ sudo -E update-alternatives --install "/usr/bin/jar" "jar" "$javahome/bin/jar" 1
 sudo -E update-alternatives --install "/usr/bin/javadoc" "javadoc" "$javahome/bin/javadoc" 1 >> $logfile 2>&1
 # See if JAVA_HOME exists and if not add it to /etc/environment
 if grep -q "JAVA_HOME" /etc/environment; then
-	log "JAVA_HOME already exists"
-else
-	# Add JAVA_HOME to /etc/environment
-	log "Adding JAVA_HOME to /etc/environment"
-	sudo -E sh -c 'echo "JAVA_HOME=$javahome" >> /etc/environment'
-	. /etc/environment
-	log "JAVA_HOME = $JAVA_HOME"
+    log "JAVA_HOME already exists, deleting"
+    sudo sed -i '/JAVA_HOME/d' /etc/environment	
 fi
+# Add JAVA_HOME to /etc/environment
+log "Adding JAVA_HOME to /etc/environment"
+sudo -E sh -c 'echo "JAVA_HOME=$javahome" >> /etc/environment'
+. /etc/environment
+log "JAVA_HOME = $JAVA_HOME"
 
 # Download Zabbix source
 log "Downloading $zabbixarchive to $tmpdir"
