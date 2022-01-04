@@ -148,7 +148,7 @@ sudo -E mysql --user=root <<_EOF_
 USE zabbix;
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.DSN}', '', 'MySQL Data Source Name', 0 FROM hosts WHERE host = 'Zabbix server'; 
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.USER}', 'zbx_monitor', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server'; 
-INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.PASSWORD}', 'monzabbixZaq!2wsx', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server';
+INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.PASSWORD}', '${monzabbix}', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server';
 _EOF_
 
 # Install webserver
