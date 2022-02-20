@@ -62,6 +62,10 @@ sudo -E add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
 sudo -E apt update >> $logfile 2>&1
 # Install Zabbix Agent 2
 log "Installing Zabbix Agent 2..."
+# Stop existing service
+if [ -f /etc/systemd/system/zabbix-agent2.service ] then
+	sudo -E service zabbix-agent2 stop >> $logfile 2>&1
+fi
 sudo -E groupadd zabbix >> $logfile 2>&1
 sudo -E useradd -g zabbix -s /bin/bash zabbix >> $logfile 2>&1
 sudo -E apt-get -y install build-essential pkg-config libpcre3-dev libz-dev golang-go >> $logfile 2>&1
