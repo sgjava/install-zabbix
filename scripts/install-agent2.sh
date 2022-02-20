@@ -63,7 +63,7 @@ sudo -E apt update >> $logfile 2>&1
 # Install Zabbix Agent 2
 log "Installing Zabbix Agent 2..."
 # Stop existing service
-if [ -f /etc/systemd/system/zabbix-agent2.service ] then
+if [ -f /etc/systemd/system/zabbix-agent2.service ]; then
 	sudo -E service zabbix-agent2 stop >> $logfile 2>&1
 fi
 sudo -E groupadd zabbix >> $logfile 2>&1
@@ -83,7 +83,7 @@ sudo -E sed -i "s|ServerActive=127.0.0.1|ServerActive=$zabbixhost|g" "$zabbixcon
 # Install Zabbix agent 2 service
 
 log "Installing Zabbix Agent 2 Service..."
-if [ ! -f /etc/systemd/system/zabbix-agent2.service ] then
+if [ ! -f /etc/systemd/system/zabbix-agent2.service ]; then
 	sudo tee -a /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
 [Unit]
 Description=Zabbix Agent 2
