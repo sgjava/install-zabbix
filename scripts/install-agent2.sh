@@ -5,7 +5,8 @@
 # @author: sgoldsmith
 #
 # Install Zabbix Agent 2 on Ubuntu 20.04. This may work on other versions and
-# Debian like distributions. Change variables below to suit your needs.
+# Debian like distributions. Change variables below to suit your needs. This
+# script will detect previous install and upgrade the agent.
 #
 # Steven P. Goldsmith
 # sgjava@gmail.com
@@ -76,8 +77,10 @@ sudo -E sed -i "s|Server=127.0.0.1|Server=$zabbixhost|g" "$zabbixconf" >> $logfi
 sudo -E sed -i "s|ServerActive=127.0.0.1|ServerActive=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
 
 # Install Zabbix agent 2 service
+
 log "Installing Zabbix Agent 2 Service..."
-sudo tee -a /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
+if [ ! -f /etc/systemd/system/zabbix-agent2.service ] then
+	sudo tee -a /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
 [Unit]
 Description=Zabbix Agent 2
 After=syslog.target network.target
@@ -92,7 +95,9 @@ PIDFile=/tmp/zabbix_agent2.pid
 [Install]
 WantedBy=multi-user.target
 EOT
-sudo -E systemctl enable zabbix-agent2 >> $logfile 2>&1
+
+	sudo -E systemctl enable zabbix-agent2 >> $logfile 2>&1
+fi
 
 # Start up Zabbix Agent 2
 log "Starting Zabbix Agent 2..."
