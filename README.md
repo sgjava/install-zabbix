@@ -11,7 +11,7 @@ building from source is the only method. The scripts allow:
 * Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
 * Install Zabbix Server
 * Configures macros for local MySQL monitoring (just add 'Template DB MySQL by Zabbix agent 2' template to 'Zabbix server')
-* Instal Zabbix Agent 2
+* Install Zabbix Agent 2
 * Create systemd services for both Zabbix Server and Agent 2
 * Move MySQL data directory (optional)
 * Install Zabbix Agent 2 on clients (optional)
