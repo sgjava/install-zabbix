@@ -1,7 +1,7 @@
 ![Title](images/title.png)
 
 Install Zabbix is a set of scripts to install Zabbix 6.0.x from source on Ubuntu
-20.04 and probably other Debian derived distributions. You can of course use
+22.05 and probably other Debian derived distributions. You can of course use
 various methods to install Zabbix Server, but this method gives you the ultimate
 flexibility. In addition, there are no deb packages for ARM based platforms hence
 building from source is the only method. The scripts allow:
