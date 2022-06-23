@@ -56,19 +56,20 @@ filename="${zabbixarchive%.*}"
 filename="${filename%.*}"
 sudo -E mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
 
-# Use latest golang
-log "Adding Go repository..."
-sudo -E add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
-sudo -E apt update >> $logfile 2>&1
 # Install Zabbix Agent 2
 log "Installing Zabbix Agent 2..."
-# Stop existing service
 if [ -f /etc/systemd/system/zabbix-agent2.service ]; then
+	# Stop existing service
 	sudo -E service zabbix-agent2 stop >> $logfile 2>&1
+else
+	# Use latest golang
+	log "Adding Go repository..."
+	sudo -E add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
+	sudo -E apt update >> $logfile 2>&1
+	sudo -E groupadd zabbix >> $logfile 2>&1
+	sudo -E useradd -g zabbix -s /bin/bash zabbix >> $logfile 2>&1
+	sudo -E apt-get -y install build-essential pkg-config libpcre3-dev libz-dev golang-go >> $logfile 2>&1
 fi
-sudo -E groupadd zabbix >> $logfile 2>&1
-sudo -E useradd -g zabbix -s /bin/bash zabbix >> $logfile 2>&1
-sudo -E apt-get -y install build-essential pkg-config libpcre3-dev libz-dev golang-go >> $logfile 2>&1
 cd "${srcdir}/${filename}" >> $logfile 2>&1
 # Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
 log "Patching source to work on 32 bit platforms..."
@@ -81,9 +82,8 @@ sudo -E sed -i "s|Server=127.0.0.1|Server=$zabbixhost|g" "$zabbixconf" >> $logfi
 sudo -E sed -i "s|ServerActive=127.0.0.1|ServerActive=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
 
 # Install Zabbix agent 2 service
-
-log "Installing Zabbix Agent 2 Service..."
 if [ ! -f /etc/systemd/system/zabbix-agent2.service ]; then
+	log "Installing Zabbix Agent 2 Service..."
 	sudo tee -a /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
 [Unit]
 Description=Zabbix Agent 2
