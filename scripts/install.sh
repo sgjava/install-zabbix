@@ -5,7 +5,7 @@
 # @author: sgoldsmith
 #
 # Install dependencies, mysql, Zabbix Server 6.0.x and Zabbix Agent 2 on Ubuntu
-# 20.04. This may work on other versions and Debian like distributions.
+# 22.05. This may work on other versions and Debian like distributions.
 #
 # Change variables below to suit your needs.
 #

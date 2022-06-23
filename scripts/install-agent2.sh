@@ -4,7 +4,7 @@
 #
 # @author: sgoldsmith
 #
-# Install Zabbix Agent 2 on Ubuntu 20.04. This may work on other versions and
+# Install Zabbix Agent 2 on Ubuntu 22.05. This may work on other versions and
 # Debian like distributions. Change variables below to suit your needs. This
 # script will detect previous install and upgrade the agent.
 #
