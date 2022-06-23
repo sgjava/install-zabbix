@@ -1,5 +1,15 @@
 ![Title](images/title.png)
 
+Getting error with Ubuntu Jammy. Could be my VM image using Chrome dev. Let me figure 
+out what's going on. For now stick with Ubuntu 20.04 Focal.
+
+```
+The following packages have unmet dependencies:
+ libudev-dev : Depends: libudev1 (= 249.11-0ubuntu3) but 249.11-0ubuntu3.1 is to be installed
+E: Unable to correct problems, you have held broken packages.
+
+```
+
 Install Zabbix is a set of scripts to install Zabbix 6.0.x from source on Ubuntu
 22.05 and probably other Debian derived distributions. You can of course use
 various methods to install Zabbix Server, but this method gives you the ultimate
