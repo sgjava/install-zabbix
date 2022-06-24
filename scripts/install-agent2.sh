@@ -80,6 +80,7 @@ sudo -E make install >> $logfile 2>&1
 # Configure Zabbix agent 2
 sudo -E sed -i "s|Server=127.0.0.1|Server=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
 sudo -E sed -i "s|ServerActive=127.0.0.1|ServerActive=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
+sudo -E sed -i "s|Hostname=|#Hostname=|g" "$zabbixconf" >> $logfile 2>&1
 
 # Install Zabbix agent 2 service
 if [ ! -f /etc/systemd/system/zabbix-agent2.service ]; then
