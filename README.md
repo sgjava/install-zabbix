@@ -19,7 +19,8 @@ building from source is the only method. The scripts allow:
 **Important note:** Before upgrading Zabbix see [Upgrade from sources](https://www.zabbix.com/documentation/current/en/manual/installation/upgrade/sources). 
 To be on the safe side I would [export](https://www.zabbix.com/documentation/current/en/manual/xml_export_import) Zabbix
 server configuration, shut down Zabbix server service and [backup](https://linuxconfig.org/linux-commands-to-backup-and-restore-mysql-database)
-MySQL database.
+MySQL database. If you are using a VM just make a snapshot before upgrading and rollback 
+if you have problems. As always, you should test upgrade on a VM first if possible.
 
 See [PHP 8 support](https://support.zabbix.com/browse/ZBXNEXT-7080) is coming and I 
 will switch over when that happens. I had to install PHP 7.4 on Ubuntu 22.05.
