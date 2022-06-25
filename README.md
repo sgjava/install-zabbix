@@ -1,6 +1,6 @@
 ![Title](images/title.png)
 
-Install Zabbix is a set of scripts to install Zabbix 6.0.x from source on Ubuntu
+Install Zabbix is a set of scripts to install/update Zabbix 6.0.x from source on Ubuntu
 22.05 and probably other Debian derived distributions. You can of course use
 various methods to install Zabbix Server, but this method gives you the ultimate
 flexibility. In addition, there are no deb packages for ARM based platforms hence
@@ -15,6 +15,9 @@ building from source is the only method. The scripts allow:
 * Create systemd services for both Zabbix Server and Agent 2
 * Move MySQL data directory (optional)
 * Install Zabbix Agent 2 on clients (optional)
+
+See [PHP 8 support](https://support.zabbix.com/browse/ZBXNEXT-7080) is coming and I 
+will switch over when that happens. I had to install PHP 7.4 on Ubuntu 22.05.
 
 More [configuration](https://techexpert.tips/category/zabbix) options!
 
