@@ -61,6 +61,8 @@ log "Installing Zabbix Agent 2..."
 if [ -f /etc/systemd/system/zabbix-agent2.service ]; then
 	# Stop existing service
 	sudo -E service zabbix-agent2 stop >> $logfile 2>&1
+	log "Saving existing configuration to ${zabbixconf}.bak"
+	sudo -E mv "${zabbixconf}" "${zabbixconf}.bak"
 else
 	# Use latest golang
 	log "Adding Go repository..."

@@ -24,7 +24,9 @@ More [configuration](https://techexpert.tips/category/zabbix) options!
 
 ## Install script
 This assumes a fresh OS install. You should try the scripts out on a VM to play
-with configuration prior to doing final install.
+with configuration prior to doing final install. Upgrade is performed if existing
+install detected and configuration is saved to `/usr/local/etc/zabbix_server.conf.bak`
+and `/usr/local/etc/zabbix_agent2.conf.bak`
 * `cd ~/install-zabbix/scripts`
 * Change configuration values as needed
 * `./install.sh`
@@ -52,7 +54,8 @@ These changes can be removed during `apt upgrade`, so if you see mysql fail to s
 
 ## Install Agent 2 script
 Install Zabbix Agent 2 script on client. Make sure to change configuration to point to
-your Zabbix server before running. You can always configure manually should you forget. 
+your Zabbix server before running. You can always configure manually should you forget.
+Upgrade is performed if existing install detected and configuration is saved to `/usr/local/etc/zabbix_agent2.conf.bak`
 * `cd ~/install-zabbix/scripts`
 * Change configuration values as needed
 * `./install-agent2.sh`

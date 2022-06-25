@@ -37,6 +37,9 @@ phptz="America/New_York"
 # Zabbix server configuration
 zabbixconf="/usr/local/etc/zabbix_server.conf"
 
+#Zabbix agent configuration
+zabbixagentconf="/usr/local/etc/zabbix_agent2.conf"
+
 # Get architecture
 arch=$(uname -m)
 
@@ -58,11 +61,12 @@ log "Removing temp dir $tmpdir"
 rm -rf "$tmpdir" >> $logfile 2>&1
 mkdir -p "$tmpdir" >> $logfile 2>&1
 
-log "Installing MySQL..."
-sudo -E apt-get -y update >> $logfile 2>&1
-sudo -E apt-get -y install mysql-server mysql-client >> $logfile 2>&1
-# Secure MySQL, create zabbix DB, zabbix user and zbx_monitor user.
-sudo -E mysql --user=root <<_EOF_
+if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
+	log "Installing MySQL..."
+	sudo -E apt-get -y update >> $logfile 2>&1
+	sudo -E apt-get -y install mysql-server mysql-client >> $logfile 2>&1
+	# Secure MySQL, create zabbix DB, zabbix user and zbx_monitor user.
+	sudo -E mysql --user=root <<_EOF_
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
@@ -76,6 +80,16 @@ GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_m
 FLUSH PRIVILEGES;
 _EOF_
 
+else
+	# Stop existing service
+	sudo -E service zabbix-server stop >> $logfile 2>&1
+	log "Saving existing configuration to ${zabbixconf}.bak"
+	sudo -E mv "${zabbixconf}" "${zabbixconf}.bak"
+	# Stop existing service
+	sudo -E service zabbix-agent2 stop >> $logfile 2>&1
+	log "Saving existing configuration to ${zabbixagentconf}.bak"
+	sudo -E mv "${zabbixagentconf}" "${zabbixagentconf}.bak"
+fi
 #Default JDK
 javahome=/usr/lib/jvm/jdk17
 # ARM 32
@@ -135,53 +149,55 @@ filename="${zabbixarchive%.*}"
 filename="${filename%.*}"
 sudo -E mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
 
-# Import Zabbix data
-log "Importing Zabbix data..."
-cd "${srcdir}/${filename}/database/mysql" >> $logfile 2>&1
-sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < schema.sql >> $logfile 2>&1
-sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < images.sql >> $logfile 2>&1
-sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < data.sql >> $logfile 2>&1
-# Insert macro values to monitor 'Zabbix server' MySQL DB (just add 'Template DB MySQL by Zabbix agent 2')
-sudo -E mysql --user=root <<_EOF_
+if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
+	# Import Zabbix data
+	log "Importing Zabbix data..."
+	cd "${srcdir}/${filename}/database/mysql" >> $logfile 2>&1
+	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < schema.sql >> $logfile 2>&1
+	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < images.sql >> $logfile 2>&1
+	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < data.sql >> $logfile 2>&1
+	# Insert macro values to monitor 'Zabbix server' MySQL DB (just add 'Template DB MySQL by Zabbix agent 2')
+	sudo -E mysql --user=root <<_EOF_
 USE zabbix;
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.DSN}', '', 'MySQL Data Source Name', 0 FROM hosts WHERE host = 'Zabbix server'; 
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.USER}', 'zbx_monitor', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server'; 
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.PASSWORD}', '${monzabbix}', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server';
 _EOF_
 
-# Install webserver
-log "Installing Apache and PHP..."
-sudo -E apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap mlocate >> $logfile 2>&1
-sudo -E updatedb >> $logfile 2>&1
-# Get php.ini file location
-phpini=$(locate php.ini 2>&1 | head -n 1)
-# Update settings in php.ini
-sudo -E sed -i 's/max_execution_time = 30/max_execution_time = 300/g' "$phpini" >> $logfile 2>&1
-sudo -E sed -i 's/memory_limit = 128M/memory_limit = 256M/g' "$phpini" >> $logfile 2>&1
-sudo -E sed -i 's/post_max_size = 8M/post_max_size = 32M/g' "$phpini" >> $logfile 2>&1
-sudo -E sed -i 's/max_input_time = 60/max_input_time = 300/g' "$phpini" >> $logfile 2>&1
-sudo -E sed -i "s|;date.timezone =|date.timezone = $phptz|g" "$phpini" >> $logfile 2>&1
-sudo -E service apache2 restart >> $logfile 2>&1
+	# Install webserver
+	log "Installing Apache and PHP..."
+	sudo -E apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap mlocate >> $logfile 2>&1
+	sudo -E updatedb >> $logfile 2>&1
+	# Get php.ini file location
+	phpini=$(locate php.ini 2>&1 | head -n 1)
+	# Update settings in php.ini
+	sudo -E sed -i 's/max_execution_time = 30/max_execution_time = 300/g' "$phpini" >> $logfile 2>&1
+	sudo -E sed -i 's/memory_limit = 128M/memory_limit = 256M/g' "$phpini" >> $logfile 2>&1
+	sudo -E sed -i 's/post_max_size = 8M/post_max_size = 32M/g' "$phpini" >> $logfile 2>&1
+	sudo -E sed -i 's/max_input_time = 60/max_input_time = 300/g' "$phpini" >> $logfile 2>&1
+	sudo -E sed -i "s|;date.timezone =|date.timezone = $phptz|g" "$phpini" >> $logfile 2>&1
+	sudo -E service apache2 restart >> $logfile 2>&1
 
-# Use latest golang
-log "Adding Go repository..."
-sudo -E add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
-sudo -E apt update >> $logfile 2>&1
-# Install Zabbix
-log "Installing Zabbix Server..."
-# Create group and user
-sudo -E addgroup --system --quiet zabbix >> $logfile 2>&1
-sudo -E adduser --quiet --system --disabled-login --ingroup zabbix --home /var/lib/zabbix --no-create-home zabbix >> $logfile 2>&1
-# Create user home
-sudo -E mkdir -m u=rwx,g=rwx,o= -p /var/lib/zabbix >> $logfile 2>&1
-sudo -E chown zabbix:zabbix /var/lib/zabbix >> $logfile 2>&1
-sudo -E apt-get -y install build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go >> $logfile 2>&1
-sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre3-dev >> $logfile 2>&1
-sudo -E apt-get -y install libldap2-dev libiksemel-dev libcurl4-openssl-dev libgnutls28-dev >> $logfile 2>&1
-cd "${srcdir}/${filename}" >> $logfile 2>&1
-# Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
-log "Patching source to work on 32 bit platforms..."
-sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> $logfile 2>&1
+	# Use latest golang
+	log "Adding Go repository..."
+	sudo -E add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
+	sudo -E apt update >> $logfile 2>&1
+	# Install Zabbix
+	log "Installing Zabbix Server..."
+	# Create group and user
+	sudo -E addgroup --system --quiet zabbix >> $logfile 2>&1
+	sudo -E adduser --quiet --system --disabled-login --ingroup zabbix --home /var/lib/zabbix --no-create-home zabbix >> $logfile 2>&1
+	# Create user home
+	sudo -E mkdir -m u=rwx,g=rwx,o= -p /var/lib/zabbix >> $logfile 2>&1
+	sudo -E chown zabbix:zabbix /var/lib/zabbix >> $logfile 2>&1
+	sudo -E apt-get -y install build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go >> $logfile 2>&1
+	sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre3-dev >> $logfile 2>&1
+	sudo -E apt-get -y install libldap2-dev libiksemel-dev libcurl4-openssl-dev libgnutls28-dev >> $logfile 2>&1
+	cd "${srcdir}/${filename}" >> $logfile 2>&1
+	# Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
+	log "Patching source to work on 32 bit platforms..."
+	sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> $logfile 2>&1
+fi
 # Cnange configuration options here
 sudo -E ./configure --enable-server --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
 sudo -E make install >> $logfile 2>&1
@@ -194,8 +210,9 @@ sudo -E sed -i "s|# Fping6Location=/usr/sbin/fping6|Fping6Location=/usr/bin/fpin
 sudo -E sed -i "s/# StartPingers=1/StartPingers=10/g" "$zabbixconf" >> $logfile 2>&1
 
 # Install Zabbix server service
-log "Installing Zabbix Server Service..."
-sudo tee -a /etc/systemd/system/zabbix-server.service > /dev/null <<EOT
+if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
+	log "Installing Zabbix Server Service..."
+	sudo tee -a /etc/systemd/system/zabbix-server.service > /dev/null <<EOT
 [Unit]
 Description=Zabbix Server
 After=syslog.target network.target mysql.service
@@ -211,11 +228,12 @@ PIDFile=/tmp/zabbix_server.pid
 [Install]
 WantedBy=multi-user.target
 EOT
-sudo -E systemctl enable zabbix-server >> $logfile 2>&1
 
-# Install Zabbix agent 2 service
-log "Installing Zabbix Agent 2 Service..."
-sudo tee -a /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
+	sudo -E systemctl enable zabbix-server >> $logfile 2>&1
+
+	# Install Zabbix agent 2 service
+	log "Installing Zabbix Agent 2 Service..."
+	sudo tee -a /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
 [Unit]
 Description=Zabbix Agent 2
 After=syslog.target network.target
@@ -230,14 +248,17 @@ PIDFile=/tmp/zabbix_agent2.pid
 [Install]
 WantedBy=multi-user.target
 EOT
-sudo -E systemctl enable zabbix-agent2 >> $logfile 2>&1
 
+	sudo -E systemctl enable zabbix-agent2 >> $logfile 2>&1
+else
+	# Remove front end	
+	sudo -E rm -rf /var/www/html/zabbix
+fi
 # Installing Zabbix front end
 log "Installing Zabbix PHP Front End..."
 cd "${srcdir}/${filename}" >> $logfile 2>&1
 sudo -E mv "${srcdir}/${filename}/ui" /var/www/html/zabbix >> $logfile 2>&1
 sudo -E chown -R www-data:www-data /var/www/html/zabbix >> $logfile 2>&1
-
 # Start up Zabbix
 log "Starting Zabbix Server..."
 sudo -E service zabbix-server start >> $logfile 2>&1
