@@ -59,6 +59,14 @@ do the following:
 * Add `RequiresMountsFor=/your/mount/dir` to `[Unit]` section
 * `sudo systemctl daemon-reload`
 
+To stop and start MySQL server
+* `sudo service mysql stop`
+* `sudo service mysql start`
+
+To stop and start Zabbix server
+* `sudo service zabbix-server stop`
+* `sudo service zabbix-server start`
+
 These changes can be removed during `apt upgrade`, so if you see mysql fail to start after reboot add service changes back in. 
 
 ## Install Agent 2 script
@@ -69,3 +77,7 @@ Upgrade is performed if existing install detected and configuration is saved to 
 * Change configuration values as needed
 * `./install-agent2.sh`
 * Check log file for errors
+
+To stop and start Zabbix Agent 2
+* `sudo service zabbix-agent2 stop`
+* `sudo service zabbix-agent2 start`
