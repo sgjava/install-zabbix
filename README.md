@@ -52,6 +52,10 @@ to a NFS share if you are running Zabbix Server off an SD card for instance.
 * `./movedb.sh`
 * Check log file for errors
 
+To stop and start Zabbix server
+* `sudo service zabbix-server stop`
+* `sudo service zabbix-server start`
+
 If you plan on using a NFS mount for your MySQL data directory you will need to
 do the following:
 * `sudo nano /etc/systemd/system/multi-user.target.wants/mysql.service`
@@ -62,10 +66,6 @@ do the following:
 To stop and start MySQL server
 * `sudo service mysql stop`
 * `sudo service mysql start`
-
-To stop and start Zabbix server
-* `sudo service zabbix-server stop`
-* `sudo service zabbix-server start`
 
 These changes can be removed during `apt upgrade`, so if you see mysql fail to start after reboot add service changes back in. 
 
