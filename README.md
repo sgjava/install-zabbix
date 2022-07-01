@@ -3,7 +3,7 @@
 Install Zabbix is a set of scripts to install/upgrade Zabbix 6.0.x from source on Ubuntu
 22.05 and probably other Debian derived distributions. You can of course use
 various methods to install Zabbix Server, but this method gives you the ultimate
-flexibility. In addition, there are no deb packages for ARM based platforms hence
+flexibility. In addition, there are no deb packages for ARM32 based platforms hence
 building from source is the only method. The scripts allow:
 * Install and secure MySQL server
 * Import Zabbix data into MySQL
@@ -21,9 +21,6 @@ To be on the safe side I would [export](https://www.zabbix.com/documentation/cur
 server configuration, shut down Zabbix server service and [backup](https://linuxconfig.org/linux-commands-to-backup-and-restore-mysql-database)
 MySQL database. If you are using a VM just make a snapshot before upgrading and rollback 
 if you have problems. As always, you should test upgrade on a VM first if possible.
-
-[PHP 8 support](https://support.zabbix.com/browse/ZBXNEXT-7080) is coming and I 
-will switch over when that happens. I had to install PHP 7.4 on Ubuntu 22.05.
 
 More [configuration](https://techexpert.tips/category/zabbix) options!
 
@@ -44,6 +41,10 @@ and `/usr/local/etc/zabbix_agent2.conf.bak`
 * Get DB password from script and finalize front end configuration
 * Login using Admin/zabbix
 
+To stop and start Zabbix server
+* `sudo service zabbix-server stop`
+* `sudo service zabbix-server start`
+
 ## Move DB script
 This assumes you ran install.sh above. It's handy to move the MySQL data directory
 to a NFS share if you are running Zabbix Server off an SD card for instance.
@@ -51,10 +52,6 @@ to a NFS share if you are running Zabbix Server off an SD card for instance.
 * Change configuration values as needed
 * `./movedb.sh`
 * Check log file for errors
-
-To stop and start Zabbix server
-* `sudo service zabbix-server stop`
-* `sudo service zabbix-server start`
 
 If you plan on using a NFS mount for your MySQL data directory you will need to
 do the following:
