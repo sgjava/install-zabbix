@@ -22,6 +22,17 @@ server configuration, shut down Zabbix server service and [backup](https://linux
 MySQL database. If you are using a VM just make a snapshot before upgrading and rollback 
 if you have problems. As always, you should test upgrade on a VM first if possible.
 
+**Upgrading from 6.0.6 to 6.2.0** I get ```The Zabbix database version does not match current requirements. Your database version: 6010048. Required version: 6020000. Please contact your system administrator.```
+in UI and ```[Z3005] query failed: [1419] You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable) [create trigger hosts_insert after insert on hosts``` 
+in log.
+* `sudo service zabbix-server stop`
+* `sudo mysql -u root`
+* `SET GLOBAL log_bin_trust_function_creators = 1;`
+* `commit;`
+* `quit`
+* `sudo service zabbix-server start`
+* Check /tmp/zabbix_server.log
+
 More [configuration](https://techexpert.tips/category/zabbix) options!
 
 ## Download project
