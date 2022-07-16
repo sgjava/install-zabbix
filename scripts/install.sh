@@ -4,7 +4,7 @@
 #
 # @author: sgoldsmith
 #
-# Install dependencies, mysql, Zabbix Server 6.0.x and Zabbix Agent 2 on Ubuntu
+# Install dependencies, mysql, Zabbix Server 6.2.x and Zabbix Agent 2 on Ubuntu
 # 22.05. This may work on other versions and Debian like distributions.
 #
 # Change variables below to suit your needs.
@@ -67,6 +67,7 @@ if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
 	sudo -E apt-get -y install mysql-server mysql-client >> $logfile 2>&1
 	# Secure MySQL, create zabbix DB, zabbix user and zbx_monitor user.
 	sudo -E mysql --user=root <<_EOF_
+SET GLOBAL log_bin_trust_function_creators = 1;
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
@@ -162,6 +163,7 @@ USE zabbix;
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.DSN}', '', 'MySQL Data Source Name', 0 FROM hosts WHERE host = 'Zabbix server'; 
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.USER}', 'zbx_monitor', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server'; 
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.PASSWORD}', '${monzabbix}', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server';
+SET GLOBAL log_bin_trust_function_creators = 0;
 _EOF_
 
 	# Install webserver

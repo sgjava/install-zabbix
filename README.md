@@ -1,6 +1,6 @@
 ![Title](images/title.png)
 
-Install Zabbix is a set of scripts to install/upgrade Zabbix 6.0.x from source on Ubuntu
+Install Zabbix is a set of scripts to install/upgrade Zabbix 6.2.x from source on Ubuntu
 22.05 and probably other Debian derived distributions. You can of course use
 various methods to install Zabbix Server, but this method gives you the ultimate
 flexibility. In addition, there are no deb packages for ARM32 based platforms hence
@@ -22,7 +22,7 @@ server configuration, shut down Zabbix server service and [backup](https://linux
 MySQL database. If you are using a VM just make a snapshot before upgrading and rollback 
 if you have problems. As always, you should test upgrade on a VM first if possible.
 
-**Upgrading from 6.0.6 to 6.2.0** I get ```The Zabbix database version does not match current requirements. Your database version: 6010048. Required version: 6020000. Please contact your system administrator.```
+**Upgrading error** If you get ```The Zabbix database version does not match current requirements. Your database version: 6010048. Required version: 6020000. Please contact your system administrator.```
 in UI and ```[Z3005] query failed: [1419] You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable) [create trigger hosts_insert after insert on hosts``` 
 in log.
 * `sudo service zabbix-server stop`
