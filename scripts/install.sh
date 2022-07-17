@@ -160,7 +160,7 @@ if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
 	# Insert macro values to monitor 'Zabbix server' MySQL DB (just add 'Template DB MySQL by Zabbix agent 2')
 	sudo -E mysql --user=root <<_EOF_
 USE zabbix;
-INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.DSN}', '', 'MySQL Data Source Name', 0 FROM hosts WHERE host = 'Zabbix server'; 
+INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.DSN}', '', '', 0 FROM hosts WHERE host = 'Zabbix server'; 
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.USER}', 'zbx_monitor', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server'; 
 INSERT INTO hostmacro SELECT (select max(hostmacroid)+1 from hostmacro), hostid, '{\$MYSQL.PASSWORD}', '${monzabbix}', 'MySQL DB monitor password', 0 FROM hosts WHERE host = 'Zabbix server';
 SET GLOBAL log_bin_trust_function_creators = 0;
