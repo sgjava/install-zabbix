@@ -23,7 +23,7 @@ dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/6.2/zabbix-6.2.1.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/6.2/zabbix-6.2.3.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
@@ -95,16 +95,16 @@ fi
 javahome=/usr/lib/jvm/jdk17
 # ARM 32
 if [ "$arch" = "armv7l" ]; then
-    jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu17.34.19-ca-jdk17.0.3-linux_aarch32hf.tar.gz"
+    jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu17.36.19-ca-jdk17.0.4.1-linux_aarch32hf.tar.gz"
 # ARM 64
 elif [ "$arch" = "aarch64" ]; then
-	jdkurl="https://cdn.azul.com/zulu/bin/zulu17.34.19-ca-jdk17.0.3-linux_aarch64.tar.gz"
+	jdkurl="https://cdn.azul.com/zulu/bin/zulu17.36.17-ca-jdk17.0.4.1-linux_aarch64.tar.gz"
 # X86_32
 elif [ "$arch" = "i586" ] || [ "$arch" = "i686" ]; then
-	jdkurl="https://cdn.azul.com/zulu/bin/zulu17.34.19-ca-jdk17.0.3-linux_i686.tar.gz"
+	jdkurl="https://cdn.azul.com/zulu/bin/zulu17.36.19-ca-jdk17.0.4.1-linux_i686.tar.gz"
 # X86_64	
 elif [ "$arch" = "x86_64" ]; then
-    jdkurl="https://cdn.azul.com/zulu/bin/zulu17.34.19-ca-jdk17.0.3-linux_x64.tar.gz"
+    jdkurl="https://cdn.azul.com/zulu/bin/zulu17.36.17-ca-jdk17.0.4.1-linux_x64.tar.gz"
 fi
 export javahome
 # Just JDK archive name

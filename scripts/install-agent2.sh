@@ -13,7 +13,7 @@
 #
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/6.2/zabbix-6.2.1.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/6.2/zabbix-6.2.3.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
