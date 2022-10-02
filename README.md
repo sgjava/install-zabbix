@@ -10,7 +10,7 @@ building from source is the only method. The scripts allow:
 * Install Java 17 JDK for the Java gateway and enable in build
 * Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
 * Install Zabbix Server
-* Configures macros for local MySQL monitoring (just add 'Template DB MySQL by Zabbix agent 2' template to 'Zabbix server')
+* Create zbx_monitor user for local MySQL monitoring (just configure and add 'Template DB MySQL by Zabbix agent 2' template to 'Zabbix server')
 * Install Zabbix Agent 2
 * Create systemd services for both Zabbix Server and Agent 2
 * Move MySQL data directory (optional)
