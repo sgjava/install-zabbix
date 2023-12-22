@@ -106,7 +106,7 @@ elif [ "$arch" = "i586" ] || [ "$arch" = "i686" ]; then
 	javahome=/usr/lib/jvm/jdk17
 # X86_64	
 elif [ "$arch" = "x86_64" ]; then
-    jdkurl="https://cdn.azul.com/zulu/bin/zulu21.30.15-ca-fx-jdk21.0.1-linux_x64.tar.gz"
+	jdkurl="https://cdn.azul.com/zulu/bin/zulu21.30.15-ca-fx-jdk21.0.1-linux_x64.tar.gz"
 	javahome=/usr/lib/jvm/jdk21
 fi
 export javahome
