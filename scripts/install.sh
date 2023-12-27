@@ -197,8 +197,12 @@ _EOF_
 fi	
 cd "${srcdir}/${filename}" >> $logfile 2>&1
 # Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
-log "Patching source to work on 32 bit platforms..."
+log "Patching procfs_linux.go  to work on 32 bit platforms..."
 sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> $logfile 2>&1
+# Patch db.c to fix https://support.zabbix.com/si/jira.issueviews:issue-html/ZBX-23145/ZBX-23145
+log "Patching db.c to prevent spamming log..."
+sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdb/db.c >> $logfile 2>&1
+sed -i '/Cannot set MySQL reconnect option/d' src/libs/zbxdb/db.c >> $logfile 2>&1
 # Cnange configuration options here
 sudo -E ./configure --enable-server --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
 sudo -E make install >> $logfile 2>&1
