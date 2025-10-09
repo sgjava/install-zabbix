@@ -4,7 +4,7 @@
 #
 # @author: sgoldsmith
 #
-# Install Zabbix Agent 2 on Ubuntu 22.05. This may work on other versions and
+# Install Zabbix Agent 2 on Ubuntu 24.04. This may work on other versions and
 # Debian like distributions. Change variables below to suit your needs. This
 # script will detect previous install and upgrade the agent.
 #
@@ -13,7 +13,7 @@
 #
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/6.4/zabbix-6.4.10.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/7.4/zabbix-7.4.3.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")

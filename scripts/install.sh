@@ -4,8 +4,8 @@
 #
 # @author: sgoldsmith
 #
-# Install dependencies, mysql, Zabbix Server 6.2.x and Zabbix Agent 2 on Ubuntu
-# 22.05. This may work on other versions and Debian like distributions.
+# Install dependencies, mysql, Zabbix Server 7.4.x and Zabbix Agent 2 on Ubuntu
+# 24.04. This may work on other versions and Debian like distributions.
 #
 # Change variables below to suit your needs.
 #
@@ -23,7 +23,7 @@ dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/6.4/zabbix-6.4.10.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/7.4/zabbix-7.4.3.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
@@ -95,19 +95,19 @@ fi
 # ARM 32
 if [ "$arch" = "armv7l" ]; then
     jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu17.46.19-ca-jdk17.0.9-linux_aarch32hf.tar.gz"
-	javahome=/usr/lib/jvm/jdk17
-# ARM 64
+    javahome=/usr/lib/jvm/jdk17
+# ARM 64 (Updated to 21.0.8)
 elif [ "$arch" = "aarch64" ]; then
-	jdkurl="https://cdn.azul.com/zulu/bin/zulu21.30.15-ca-jdk21.0.1-linux_aarch64.tar.gz"
-	javahome=/usr/lib/jvm/jdk21
+    jdkurl="https://cdn.azul.com/zulu/bin/zulu21.44.17-ca-jdk21.0.8-linux_aarch64.tar.gz"
+    javahome=/usr/lib/jvm/jdk21
 # X86_32
 elif [ "$arch" = "i586" ] || [ "$arch" = "i686" ]; then
-	jdkurl="https://cdn.azul.com/zulu/bin/zulu17.46.19-ca-fx-jdk17.0.9-linux_i686.tar.gz"
-	javahome=/usr/lib/jvm/jdk17
-# X86_64	
+    jdkurl="https://cdn.azul.com/zulu/bin/zulu17.46.19-ca-fx-jdk17.0.9-linux_i686.tar.gz"
+    javahome=/usr/lib/jvm/jdk17
+# X86_64 (Updated to 21.0.8)
 elif [ "$arch" = "x86_64" ]; then
-	jdkurl="https://cdn.azul.com/zulu/bin/zulu21.30.15-ca-fx-jdk21.0.1-linux_x64.tar.gz"
-	javahome=/usr/lib/jvm/jdk21
+    jdkurl="https://cdn.azul.com/zulu/bin/zulu21.44.17-ca-fx-jdk21.0.8-linux_x64.tar.gz"
+    javahome=/usr/lib/jvm/jdk21
 fi
 export javahome
 # Just JDK archive name
@@ -167,7 +167,7 @@ _EOF_
 
 	# Install webserver
 	log "Installing Apache and PHP..."
-	sudo -E apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap mlocate >> $logfile 2>&1
+	sudo -E apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate >> $logfile 2>&1
 	sudo -E updatedb >> $logfile 2>&1
 	# Get php.ini file location
 	phpini=$(locate php.ini 2>&1 | head -n 1)
