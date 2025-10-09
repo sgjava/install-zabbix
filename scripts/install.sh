@@ -193,7 +193,7 @@ _EOF_
 	sudo -E chown zabbix:zabbix /var/lib/zabbix >> $logfile 2>&1
 	sudo -E apt-get -y install build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go >> $logfile 2>&1
 	sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre3-dev >> $logfile 2>&1
-	sudo -E apt-get -y install libldap2-dev libiksemel-dev libcurl4-openssl-dev libgnutls28-dev >> $logfile 2>&1
+	sudo -E apt-get -y install libldap2-dev libiksemel-dev libcurl4-openssl-dev php8.3-curl libgnutls28-dev >> $logfile 2>&1
 fi	
 cd "${srcdir}/${filename}" >> $logfile 2>&1
 # Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
