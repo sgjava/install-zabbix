@@ -1,13 +1,13 @@
 ![Title](images/title.png)
 
-Install Zabbix is a set of scripts to install/upgrade Zabbix 6.4.x from source on Ubuntu
-22.04 and probably other Debian derived distributions. You can of course use
+Install Zabbix is a set of scripts to install/upgrade Zabbix 7.4.x from source on Ubuntu
+24.04 and probably other Debian derived distributions. You can of course use
 various methods to install Zabbix Server, but this method gives you the ultimate
 flexibility. In addition, there are no deb packages for ARM32 based platforms hence
 building from source is the only method. The scripts allow:
 * Install and secure MySQL server
 * Import Zabbix data into MySQL
-* Install Java 17 JDK for the Java gateway and enable in build
+* Install Java 21 JDK for the Java gateway and enable in build
 * Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
 * Install Zabbix Server
 * Create zbx_monitor user for local MySQL monitoring (just configure and add 'Template DB MySQL by Zabbix agent 2' template to 'Zabbix server')
