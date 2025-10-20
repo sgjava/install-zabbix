@@ -192,7 +192,7 @@ _EOF_
 	sudo -E mkdir -m u=rwx,g=rwx,o= -p /var/lib/zabbix >> $logfile 2>&1
 	sudo -E chown zabbix:zabbix /var/lib/zabbix >> $logfile 2>&1
 	sudo -E apt-get -y install build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go >> $logfile 2>&1
-	sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre3-dev >> $logfile 2>&1
+	sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev libpcre3-dev >> $logfile 2>&1
 	sudo -E apt-get -y install libldap2-dev libiksemel-dev libcurl4-openssl-dev php8.3-curl libgnutls28-dev >> $logfile 2>&1
 fi	
 cd "${srcdir}/${filename}" >> $logfile 2>&1
