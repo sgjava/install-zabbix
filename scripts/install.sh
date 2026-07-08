@@ -159,9 +159,11 @@ sed -i '/Cannot set MySQL reconnect option/d' src/libs/zbxdb/db.c >> $logfile 2>
 
 # Export compilation flags ensuring Java compiler checks match the runtime target
 export JAVA_HOME
-# Run configuration and compile
-sudo -E ./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
-sudo -E make install >> $logfile 2>&1
+# Prepend the SDKMAN java binary directory directly to the path for the configure subshell
+log "Running Zabbix configure..."
+sudo -E PATH="$JAVA_HOME/bin:$PATH" ./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
+log "Running Zabbix make install..."
+sudo -E PATH="$JAVA_HOME/bin:$PATH" make install >> $logfile 2>&1
 
 # Configure Zabbix server
 sudo -E chmod ug+s /usr/bin/fping
