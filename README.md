@@ -46,6 +46,7 @@ install detected and configuration is saved to `/usr/local/etc/zabbix_server.con
 and `/usr/local/etc/zabbix_agent2.conf.bak`
 * `cd ~/install-zabbix/scripts`
 * Change configuration values as needed
+* `./install-java.sh`
 * `./install.sh`
 * Check log file for errors
 * Navigate to http://hostname/zabbix

@@ -1,16 +1,12 @@
 #!/bin/sh
 #
 # Created on June 5, 2020
+# Modified in 2026 for SDKMAN ecosystem integration
 #
 # @author: sgoldsmith
 #
 # Install dependencies, mysql, Zabbix Server 7.4.x and Zabbix Agent 2 on Ubuntu
-# 24.04. This may work on other versions and Debian like distributions.
-#
-# Change variables below to suit your needs.
-#
-# Steven P. Goldsmith
-# sgjava@gmail.com
+# 24.04 using globally provisioned SDKMAN Java paths.
 #
 
 # MySQL root password
@@ -23,7 +19,7 @@ dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
 
 # Zabbix Server URL
-zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/7.4/zabbix-7.4.3.tar.gz"
+zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/7.4/zabbix-7.4.9.tar.gz"
 
 # Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
@@ -39,9 +35,6 @@ zabbixconf="/usr/local/etc/zabbix_server.conf"
 
 #Zabbix agent configuration
 zabbixagentconf="/usr/local/etc/zabbix_agent2.conf"
-
-# Get architecture
-arch=$(uname -m)
 
 # Temp dir for downloads, etc.
 tmpdir="$HOME/temp"
@@ -60,6 +53,16 @@ log(){
 log "Removing temp dir $tmpdir"
 rm -rf "$tmpdir" >> $logfile 2>&1
 mkdir -p "$tmpdir" >> $logfile 2>&1
+
+# Source global environment to grab SDKMAN-managed JAVA_HOME
+if [ -f /etc/environment ]; then
+	log "Sourcing global environments..."
+	. /etc/environment
+fi
+
+if [ -z "$JAVA_HOME" ]; then
+	log "WARNING: JAVA_HOME is not set. Please run install-java.sh first."
+fi
 
 if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
 	log "Installing MySQL..."
@@ -92,56 +95,6 @@ else
 	sudo -E mv "${zabbixagentconf}" "${zabbixagentconf}.bak"
 fi
 
-# ARM 32
-if [ "$arch" = "armv7l" ]; then
-    jdkurl="https://cdn.azul.com/zulu-embedded/bin/zulu17.46.19-ca-jdk17.0.9-linux_aarch32hf.tar.gz"
-    javahome=/usr/lib/jvm/jdk17
-# ARM 64 (Updated to 21.0.8)
-elif [ "$arch" = "aarch64" ]; then
-    jdkurl="https://cdn.azul.com/zulu/bin/zulu21.44.17-ca-jdk21.0.8-linux_aarch64.tar.gz"
-    javahome=/usr/lib/jvm/jdk21
-# X86_32
-elif [ "$arch" = "i586" ] || [ "$arch" = "i686" ]; then
-    jdkurl="https://cdn.azul.com/zulu/bin/zulu17.46.19-ca-fx-jdk17.0.9-linux_i686.tar.gz"
-    javahome=/usr/lib/jvm/jdk17
-# X86_64 (Updated to 21.0.8)
-elif [ "$arch" = "x86_64" ]; then
-    jdkurl="https://cdn.azul.com/zulu/bin/zulu21.44.17-ca-fx-jdk21.0.8-linux_x64.tar.gz"
-    javahome=/usr/lib/jvm/jdk21
-fi
-export javahome
-# Just JDK archive name
-jdkarchive=$(basename "$jdkurl")
-
-# Install Zulu Java JDK
-log "Downloading $jdkarchive to $tmpdir"
-wget -q --directory-prefix=$tmpdir "$jdkurl" >> $logfile 2>&1
-log "Extracting $jdkarchive to $tmpdir"
-tar -xf "$tmpdir/$jdkarchive" -C "$tmpdir" >> $logfile 2>&1
-log "Removing $javahome"
-sudo -E rm -rf "$javahome" >> $logfile 2>&1
-# Remove .gz
-filename="${jdkarchive%.*}"
-# Remove .tar
-filename="${filename%.*}"
-sudo mkdir -p /usr/lib/jvm >> $logfile 2>&1
-log "Moving $tmpdir/$filename to $javahome"
-sudo -E mv "$tmpdir/$filename" "$javahome" >> $logfile 2>&1
-sudo -E update-alternatives --install "/usr/bin/java" "java" "$javahome/bin/java" 1 >> $logfile 2>&1
-sudo -E update-alternatives --install "/usr/bin/javac" "javac" "$javahome/bin/javac" 1 >> $logfile 2>&1
-sudo -E update-alternatives --install "/usr/bin/jar" "jar" "$javahome/bin/jar" 1 >> $logfile 2>&1
-sudo -E update-alternatives --install "/usr/bin/javadoc" "javadoc" "$javahome/bin/javadoc" 1 >> $logfile 2>&1
-# See if JAVA_HOME exists and if not add it to /etc/environment
-if grep -q "JAVA_HOME" /etc/environment; then
-    log "JAVA_HOME already exists, deleting"
-    sudo sed -i '/JAVA_HOME/d' /etc/environment	
-fi
-# Add JAVA_HOME to /etc/environment
-log "Adding JAVA_HOME to /etc/environment"
-sudo -E sh -c 'echo "JAVA_HOME=$javahome" >> /etc/environment'
-. /etc/environment
-log "JAVA_HOME = $JAVA_HOME"
-
 # Download Zabbix source
 log "Downloading $zabbixarchive to $tmpdir"
 wget -q --directory-prefix=$tmpdir "$zabbixurl" >> $logfile 2>&1
@@ -160,7 +113,7 @@ if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
 	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < schema.sql >> $logfile 2>&1
 	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < images.sql >> $logfile 2>&1
 	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < data.sql >> $logfile 2>&1
-	# Insert macro values to monitor 'Zabbix server' MySQL DB (just add 'Template DB MySQL by Zabbix agent 2')
+	# Insert macro values to monitor 'Zabbix server' MySQL DB
 	sudo -E mysql --user=root <<_EOF_
 SET GLOBAL log_bin_trust_function_creators = 0;
 _EOF_
@@ -193,19 +146,23 @@ _EOF_
 	sudo -E chown zabbix:zabbix /var/lib/zabbix >> $logfile 2>&1
 	sudo -E apt-get -y install build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go >> $logfile 2>&1
 	sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev libpcre3-dev >> $logfile 2>&1
-	sudo -E apt-get -y install libldap2-dev libiksemel-dev libcurl4-openssl-dev php8.3-curl libgnutls28-dev >> $logfile 2>&1
+	sudo -E apt-get -y install libldap2-dev libiksemel-dev php8.3-curl libgnutls28-dev >> $logfile 2>&1
 fi	
 cd "${srcdir}/${filename}" >> $logfile 2>&1
-# Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
+# Patch source to fix 32-bit platform issues
 log "Patching procfs_linux.go to work on 32 bit platforms..."
 sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> $logfile 2>&1
-# Patch db.c to fix https://support.zabbix.com/si/jira.issueviews:issue-html/ZBX-23145/ZBX-23145
+# Patch db.c to prevent spamming log
 log "Patching db.c to prevent spamming log..."
 sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdb/db.c >> $logfile 2>&1
 sed -i '/Cannot set MySQL reconnect option/d' src/libs/zbxdb/db.c >> $logfile 2>&1
-# Cnange configuration options here
+
+# Export compilation flags ensuring Java compiler checks match the runtime target
+export JAVA_HOME
+# Run configuration and compile
 sudo -E ./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
 sudo -E make install >> $logfile 2>&1
+
 # Configure Zabbix server
 sudo -E chmod ug+s /usr/bin/fping
 sudo -E chmod ug+s /usr/bin/fping6
