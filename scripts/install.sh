@@ -61,34 +61,35 @@ if [ -z "$JAVA_HOME" ]; then
 	log "WARNING: JAVA_HOME is not set. Ensure SDKMAN paths are verified."
 fi
 
-# Determine execution path based on database existence rather than systemd unit files
-db_exists=$(sudo mysql -uroot -sse "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='zabbix';")
+# Determine if the database layout is FULLY populated by verifying the dbversion table specifically
+db_populated=$(sudo mysql -uroot -sse "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='zabbix' AND TABLE_NAME='dbversion';" 2>/dev/null)
 
-if [ -z "$db_exists" ]; then
-	log "Performing pristine fresh installation sequence..."
+if [ "$db_populated" != "1" ]; then
+	log "Database unpopulated or incomplete. Performing pristine database installation sequence..."
 	log "Installing MySQL..."
 	sudo -E apt-get -y update >> $logfile 2>&1
 	sudo -E apt-get -y install mysql-server mysql-client >> $logfile 2>&1
 	
-	# Open up creation constraints for structural schema ingestion
+	# Unconditionally purge any leftover half-baked schemas to ensure schema.sql doesn't throw Error 1050
 	sudo -E mysql --user=root <<_EOF_
 SET GLOBAL log_bin_trust_function_creators = 1;
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
+DROP DATABASE IF EXISTS zabbix;
 CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
-CREATE USER 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
-CREATE USER 'zabbix'@'%' IDENTIFIED BY '${dbzabbix}';
+CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
+CREATE USER IF NOT EXISTS 'zabbix'@'%' IDENTIFIED BY '${dbzabbix}';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'%';
-CREATE USER 'zbx_monitor'@'%' IDENTIFIED BY '${monzabbix}';
+CREATE USER IF NOT EXISTS 'zbx_monitor'@'%' IDENTIFIED BY '${monzabbix}';
 GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_monitor'@'%';
 FLUSH PRIVILEGES;
 _EOF_
 
 else
-	log "Existing environment discovered. Preparing system upgrade sequence..."
+	log "Existing populated environment discovered. Preparing system upgrade sequence..."
 	sudo -E systemctl stop zabbix-server >> $logfile 2>&1
 	sudo -E systemctl stop zabbix-agent2 >> $logfile 2>&1
 	
@@ -115,7 +116,7 @@ filename="${filename%.*}"
 sudo rm -rf "${srcdir}/${filename}"
 sudo -E mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
 
-if [ -z "$db_exists" ]; then
+if [ "$db_populated" != "1" ]; then
 	log "Importing fresh Zabbix structural database schema..."
 	cd "${srcdir}/${filename}/database/mysql" >> $logfile 2>&1
 	
