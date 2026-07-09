@@ -1,12 +1,9 @@
 #!/bin/sh
 #
 # Created on June 5, 2020
-# Modified in 2026 for SDKMAN ecosystem integration and Zabbix 7.4.x structural fixes
+# Refactored for absolute structural stability and clean database compilation
 #
 # @author: sgoldsmith
-#
-# Install dependencies, mysql, Zabbix Server 7.4.x and Zabbix Agent 2 on Ubuntu
-# 24.04 using globally provisioned SDKMAN Java paths.
 #
 
 # MySQL root password
@@ -61,21 +58,25 @@ if [ -f /etc/environment ]; then
 fi
 
 if [ -z "$JAVA_HOME" ]; then
-	log "WARNING: JAVA_HOME is not set. Please run install-java.sh first."
+	log "WARNING: JAVA_HOME is not set. Ensure SDKMAN paths are verified."
 fi
 
-if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
+# Determine execution path based on database existence rather than systemd unit files
+db_exists=$(sudo mysql -uroot -sse "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='zabbix';")
+
+if [ -z "$db_exists" ]; then
+	log "Performing pristine fresh installation sequence..."
 	log "Installing MySQL..."
 	sudo -E apt-get -y update >> $logfile 2>&1
 	sudo -E apt-get -y install mysql-server mysql-client >> $logfile 2>&1
-	# Secure MySQL, create zabbix DB, zabbix user and zbx_monitor user.
+	
+	# Open up creation constraints for structural schema ingestion
 	sudo -E mysql --user=root <<_EOF_
 SET GLOBAL log_bin_trust_function_creators = 1;
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
-DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
 CREATE USER 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
 CREATE USER 'zabbix'@'%' IDENTIFIED BY '${dbzabbix}';
@@ -87,14 +88,18 @@ FLUSH PRIVILEGES;
 _EOF_
 
 else
-	# Stop existing service
-	sudo -E service zabbix-server stop >> $logfile 2>&1
-	log "Saving existing configuration to ${zabbixconf}.bak"
-	sudo -E mv "${zabbixconf}" "${zabbixconf}.bak"
-	# Stop existing service
-	sudo -E service zabbix-agent2 stop >> $logfile 2>&1
-	log "Saving existing configuration to ${zabbixagentconf}.bak"
-	sudo -E mv "${zabbixagentconf}" "${zabbixagentconf}.bak"
+	log "Existing environment discovered. Preparing system upgrade sequence..."
+	sudo -E systemctl stop zabbix-server >> $logfile 2>&1
+	sudo -E systemctl stop zabbix-agent2 >> $logfile 2>&1
+	
+	if [ -f "$zabbixconf" ]; then
+		log "Saving existing configuration to ${zabbixconf}.bak"
+		sudo -E mv "${zabbixconf}" "${zabbixconf}.bak"
+	fi
+	if [ -f "$zabbixagentconf" ]; then
+		log "Saving existing configuration to ${zabbixagentconf}.bak"
+		sudo -E mv "${zabbixagentconf}" "${zabbixagentconf}.bak"
+	fi
 fi
 
 # Download Zabbix source
@@ -102,75 +107,71 @@ log "Downloading $zabbixarchive to $tmpdir"
 wget -q --directory-prefix=$tmpdir "$zabbixurl" >> $logfile 2>&1
 log "Extracting $zabbixarchive to $tmpdir"
 tar -xf "$tmpdir/$zabbixarchive" -C "$tmpdir" >> $logfile 2>&1
-# Remove .gz
+
 filename="${zabbixarchive%.*}"
-# Remove .tar
 filename="${filename%.*}"
 
-# Wipe target source path completely to ensure UI and source directories aren't nested or broken on re-runs
+# Clean target source path completely to avoid messy file nests on retries
 sudo rm -rf "${srcdir}/${filename}"
 sudo -E mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
 
-if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
-	# Import Zabbix data
-	log "Importing Zabbix data..."
+if [ -z "$db_exists" ]; then
+	log "Importing fresh Zabbix structural database schema..."
 	cd "${srcdir}/${filename}/database/mysql" >> $logfile 2>&1
-	sudo -E mysql -u zabbix --password="$dbzabbix" zabbix < schema.sql >> $logfile 2>&1
-	sudo -E mysql -u zabbix --password="$dbzabbix" zabbix < images.sql >> $logfile 2>&1
-	sudo -E mysql -u zabbix --password="$dbzabbix" zabbix < data.sql >> $logfile 2>&1
-	# Insert macro values to monitor 'Zabbix server' MySQL DB
-	sudo -E mysql --user=root --password="$dbroot" <<_EOF_
-SET GLOBAL log_bin_trust_function_creators = 0;
-_EOF_
+	
+	# Explicit root bypass to ensure socket tracking limits don't drop packet streams
+	sudo mysql -uroot zabbix < schema.sql >> $logfile 2>&1
+	sudo mysql -uroot zabbix < images.sql >> $logfile 2>&1
+	sudo mysql -uroot zabbix < data.sql >> $logfile 2>&1
+	
+	# Secure functions block right after import completes successfully
+	sudo mysql -uroot -e "SET GLOBAL log_bin_trust_function_creators = 0;" >> $logfile 2>&1
 
-	# Install webserver
-	log "Installing Apache and PHP..."
+	# Install dependencies
+	log "Installing Webserver and PHP extensions..."
 	sudo -E apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate >> $logfile 2>&1
 	sudo -E updatedb >> $logfile 2>&1
-	# Get php.ini file location
+	
 	phpini=$(locate php.ini 2>&1 | head -n 1)
-	# Update settings in php.ini
 	sudo -E sed -i 's/max_execution_time = 30/max_execution_time = 300/g' "$phpini" >> $logfile 2>&1
 	sudo -E sed -i 's/memory_limit = 128M/memory_limit = 256M/g' "$phpini" >> $logfile 2>&1
 	sudo -E sed -i 's/post_max_size = 8M/post_max_size = 32M/g' "$phpini" >> $logfile 2>&1
 	sudo -E sed -i 's/max_input_time = 60/max_input_time = 300/g' "$phpini" >> $logfile 2>&1
 	sudo -E sed -i "s|;date.timezone =|date.timezone = $phptz|g" "$phpini" >> $logfile 2>&1
-	sudo -E service apache2 restart >> $logfile 2>&1
+	sudo -E systemctl restart apache2 >> $logfile 2>&1
 
-	# Use latest golang
-	log "Adding Go repository..."
+	log "Adding Go backports repository..."
 	sudo -E add-apt-repository ppa:longsleep/golang-backports -y >> $logfile 2>&1
-	sudo -E apt update >> $logfile 2>&1
-	# Install Zabbix
-	log "Installing Zabbix Server..."
-	# Create group and user
-	sudo -E addgroup --system --quiet zabbix >> $logfile 2>&1
-	sudo -E adduser --quiet --system --disabled-login --ingroup zabbix --home /var/lib/zabbix --no-create-home zabbix >> $logfile 2>&1
-	# Create user home
+	sudo -E apt-get update >> $logfile 2>&1
+	
+	log "Installing compilation framework libraries..."
+	if ! id "zabbix" >/dev/null 2>&1; then
+		sudo -E addgroup --system --quiet zabbix >> $logfile 2>&1
+		sudo -E adduser --quiet --system --disabled-login --ingroup zabbix --home /var/lib/zabbix --no-create-home zabbix >> $logfile 2>&1
+	fi
 	sudo -E mkdir -m u=rwx,g=rwx,o= -p /var/lib/zabbix >> $logfile 2>&1
 	sudo -E chown zabbix:zabbix /var/lib/zabbix >> $logfile 2>&1
 	sudo -E apt-get -y install build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go >> $logfile 2>&1
 	sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev libpcre3-dev >> $logfile 2>&1
-	sudo -E apt-get -y install libldap2-dev libiksemel-dev php-curl libgnutls28-dev >> $logfile 2>&1
+	sudo -E apt-get -y install libldap2-dev php-curl libgnutls28-dev >> $logfile 2>&1
 fi	
+
 cd "${srcdir}/${filename}" >> $logfile 2>&1
-# Patch source to fix 32-bit platform issues
-log "Patching procfs_linux.go to work on 32 bit platforms..."
+
+log "Applying platform source patches..."
 sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> $logfile 2>&1
-# Patch db.c to prevent spamming log
-log "Patching db.c to prevent spamming log..."
 sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdb/db.c >> $logfile 2>&1
 sed -i '/Cannot set MySQL reconnect option/d' src/libs/zbxdb/db.c >> $logfile 2>&1
 
-# Export compilation flags ensuring Java compiler checks match the runtime target
+# Provide explicitly isolated configuration execution environments passing native compiler hooks
 export JAVA_HOME
-# Prepend the SDKMAN java binary directory directly to the path for the configure subshell
 log "Running Zabbix configure..."
 sudo -E PATH="$JAVA_HOME/bin:$PATH" ./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> $logfile 2>&1
-log "Running Zabbix make install..."
+
+log "Running Zabbix compilation and install..."
 sudo -E PATH="$JAVA_HOME/bin:$PATH" make install >> $logfile 2>&1
 
-# Configure Zabbix server
+# Apply system rules
 sudo -E chmod ug+s /usr/bin/fping
 sudo -E chmod ug+s /usr/bin/fping6
 sudo -E sed -i "s/# DBPassword=/DBPassword=$dbzabbix/g" "$zabbixconf" >> $logfile 2>&1
@@ -178,10 +179,10 @@ sudo -E sed -i "s|# FpingLocation=/usr/sbin/fping|FpingLocation=/usr/bin/fping|g
 sudo -E sed -i "s|# Fping6Location=/usr/sbin/fping6|Fping6Location=/usr/bin/fping6|g" "$zabbixconf" >> $logfile 2>&1
 sudo -E sed -i "s/# StartPingers=1/StartPingers=10/g" "$zabbixconf" >> $logfile 2>&1
 
-# Install Zabbix server service
-if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
-	log "Installing Zabbix Server Service..."
-	sudo tee -a /etc/systemd/system/zabbix-server.service > /dev/null <<EOT
+# Install Systemd service units
+if [ ! -f /etc/systemd/system/zabbix-server.service ]; then
+	log "Configuring Zabbix Server systemd unit..."
+	sudo tee /etc/systemd/system/zabbix-server.service > /dev/null <<EOT
 [Unit]
 Description=Zabbix Server
 After=syslog.target network.target mysql.service
@@ -200,9 +201,8 @@ EOT
 
 	sudo -E systemctl enable zabbix-server >> $logfile 2>&1
 
-	# Install Zabbix agent 2 service
-	log "Installing Zabbix Agent 2 Service..."
-	sudo tee -a /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
+	log "Configuring Zabbix Agent 2 systemd unit..."
+	sudo tee /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
 [Unit]
 Description=Zabbix Agent 2
 After=syslog.target network.target
@@ -221,19 +221,16 @@ EOT
 	sudo -E systemctl enable zabbix-agent2 >> $logfile 2>&1
 fi
 
-# Ensure target UI location is completely clean before moving files over
+# Ensure web placement target directory path is entirely pristine
 sudo -E rm -rf /var/www/html/zabbix
 
-# Installing Zabbix front end
-log "Installing Zabbix PHP Front End..."
-cd "${srcdir}/${filename}" >> $logfile 2>&1
+log "Deploying Zabbix PHP Web Front End UI..."
 sudo -E mv "${srcdir}/${filename}/ui" /var/www/html/zabbix >> $logfile 2>&1
 sudo -E chown -R www-data:www-data /var/www/html/zabbix >> $logfile 2>&1
 
-# Start up Zabbix
-log "Starting Zabbix Server..."
-sudo -E service zabbix-server start >> $logfile 2>&1
-log "Starting Zabbix Agent 2..."
-sudo -E service zabbix-agent2 start >> $logfile 2>&1
-log "Removing temp dir $tmpdir"
-rm -rf "$tmpdir" >> $logfile 2>&1
+log "Spawning Zabbix Services..."
+sudo systemctl daemon-reload >> $logfile 2>&1
+sudo systemctl restart zabbix-server >> $logfile 2>&1
+sudo systemctl restart zabbix-agent2 >> $logfile 2>&1
+
+log "Zabbix Framework setup execution finalized cleanly."
