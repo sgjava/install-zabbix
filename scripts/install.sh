@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # Created on June 5, 2020
-# Modified in 2026 for SDKMAN ecosystem integration
+# Modified in 2026 for SDKMAN ecosystem integration and Zabbix 7.4.x structural fixes
 #
 # @author: sgoldsmith
 #
@@ -77,7 +77,9 @@ DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.
 DROP DATABASE IF EXISTS test;
 DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
+CREATE USER 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
 CREATE USER 'zabbix'@'%' IDENTIFIED BY '${dbzabbix}';
+GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'%';
 CREATE USER 'zbx_monitor'@'%' IDENTIFIED BY '${monzabbix}';
 GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_monitor'@'%';
@@ -104,17 +106,20 @@ tar -xf "$tmpdir/$zabbixarchive" -C "$tmpdir" >> $logfile 2>&1
 filename="${zabbixarchive%.*}"
 # Remove .tar
 filename="${filename%.*}"
+
+# Wipe target source path completely to ensure UI and source directories aren't nested or broken on re-runs
+sudo rm -rf "${srcdir}/${filename}"
 sudo -E mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
 
 if [ ! -f /etc/systemd/system/zabbix-server.service  ]; then
 	# Import Zabbix data
 	log "Importing Zabbix data..."
 	cd "${srcdir}/${filename}/database/mysql" >> $logfile 2>&1
-	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < schema.sql >> $logfile 2>&1
-	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < images.sql >> $logfile 2>&1
-	sudo -E mysql -u zabbix -p zabbix --password=$dbzabbix < data.sql >> $logfile 2>&1
+	sudo -E mysql -u zabbix --password="$dbzabbix" zabbix < schema.sql >> $logfile 2>&1
+	sudo -E mysql -u zabbix --password="$dbzabbix" zabbix < images.sql >> $logfile 2>&1
+	sudo -E mysql -u zabbix --password="$dbzabbix" zabbix < data.sql >> $logfile 2>&1
 	# Insert macro values to monitor 'Zabbix server' MySQL DB
-	sudo -E mysql --user=root <<_EOF_
+	sudo -E mysql --user=root --password="$dbroot" <<_EOF_
 SET GLOBAL log_bin_trust_function_creators = 0;
 _EOF_
 
@@ -146,7 +151,7 @@ _EOF_
 	sudo -E chown zabbix:zabbix /var/lib/zabbix >> $logfile 2>&1
 	sudo -E apt-get -y install build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go >> $logfile 2>&1
 	sudo -E apt-get -y install libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev libpcre3-dev >> $logfile 2>&1
-	sudo -E apt-get -y install libldap2-dev libiksemel-dev php8.3-curl libgnutls28-dev >> $logfile 2>&1
+	sudo -E apt-get -y install libldap2-dev libiksemel-dev php-curl libgnutls28-dev >> $logfile 2>&1
 fi	
 cd "${srcdir}/${filename}" >> $logfile 2>&1
 # Patch source to fix 32-bit platform issues
@@ -214,15 +219,17 @@ WantedBy=multi-user.target
 EOT
 
 	sudo -E systemctl enable zabbix-agent2 >> $logfile 2>&1
-else
-	# Remove front end	
-	sudo -E rm -rf /var/www/html/zabbix
 fi
+
+# Ensure target UI location is completely clean before moving files over
+sudo -E rm -rf /var/www/html/zabbix
+
 # Installing Zabbix front end
 log "Installing Zabbix PHP Front End..."
 cd "${srcdir}/${filename}" >> $logfile 2>&1
 sudo -E mv "${srcdir}/${filename}/ui" /var/www/html/zabbix >> $logfile 2>&1
 sudo -E chown -R www-data:www-data /var/www/html/zabbix >> $logfile 2>&1
+
 # Start up Zabbix
 log "Starting Zabbix Server..."
 sudo -E service zabbix-server start >> $logfile 2>&1
