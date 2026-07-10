@@ -61,8 +61,15 @@ if [ -z "$JAVA_HOME" ]; then
 	log "WARNING: JAVA_HOME is not set. Ensure SDKMAN paths are verified."
 fi
 
+# Dynamically establish the correct root command handle to handle pre-configured passwords safely
+if sudo mysql -uroot -p"${dbroot}" -e "SELECT 1;" >/dev/null 2>&1; then
+	MYSQL_CMD="sudo mysql -uroot -p${dbroot}"
+else
+	MYSQL_CMD="sudo mysql -uroot"
+fi
+
 # Determine if the database layout is FULLY populated by verifying the dbversion table specifically
-db_populated=$(sudo mysql -uroot -sse "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='zabbix' AND TABLE_NAME='dbversion';" 2>/dev/null)
+db_populated=$( $MYSQL_CMD -sse "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='zabbix' AND TABLE_NAME='dbversion';" 2>/dev/null )
 
 if [ "$db_populated" != "1" ]; then
 	log "Database unpopulated or incomplete. Performing pristine database installation sequence..."
@@ -70,23 +77,28 @@ if [ "$db_populated" != "1" ]; then
 	sudo -E apt-get -y update >> $logfile 2>&1
 	sudo -E apt-get -y install mysql-server mysql-client >> $logfile 2>&1
 	
-	# Unconditionally purge any leftover half-baked schemas to ensure schema.sql doesn't throw Error 1050
-	sudo -E mysql --user=root <<_EOF_
+	# Unconditionally purge any leftover half-baked schemas and enforce native password plugins
+	$MYSQL_CMD <<_EOF_ >> $logfile 2>&1
 SET GLOBAL log_bin_trust_function_creators = 1;
-ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
+ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${dbroot}';
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
 DROP DATABASE IF EXISTS zabbix;
 CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
-CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
-CREATE USER IF NOT EXISTS 'zabbix'@'%' IDENTIFIED BY '${dbzabbix}';
+CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED WITH mysql_native_password BY '${dbzabbix}';
+CREATE USER IF NOT EXISTS 'zabbix'@'%' IDENTIFIED WITH mysql_native_password BY '${dbzabbix}';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'%';
-CREATE USER IF NOT EXISTS 'zbx_monitor'@'%' IDENTIFIED BY '${monzabbix}';
+CREATE USER IF NOT EXISTS 'zbx_monitor'@'%' IDENTIFIED WITH mysql_native_password BY '${monzabbix}';
 GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_monitor'@'%';
 FLUSH PRIVILEGES;
 _EOF_
+
+	# Update the handle in case the authentication plugin styles were just updated
+	if sudo mysql -uroot -p"${dbroot}" -e "SELECT 1;" >/dev/null 2>&1; then
+		MYSQL_CMD="sudo mysql -uroot -p${dbroot}"
+	fi
 
 else
 	log "Existing populated environment discovered. Preparing system upgrade sequence..."
@@ -120,13 +132,18 @@ if [ "$db_populated" != "1" ]; then
 	log "Importing fresh Zabbix structural database schema..."
 	cd "${srcdir}/${filename}/database/mysql" >> $logfile 2>&1
 	
-	# Explicit root bypass to ensure socket tracking limits don't drop packet streams
-	sudo mysql -uroot zabbix < schema.sql >> $logfile 2>&1
-	sudo mysql -uroot zabbix < images.sql >> $logfile 2>&1
-	sudo mysql -uroot zabbix < data.sql >> $logfile 2>&1
+	# Turn off strict row format checks explicitly for this connection instance to completely bypass row limits safely
+	(
+		echo "SET GLOBAL innodb_strict_mode = OFF;"
+		echo "SET SESSION innodb_strict_mode = OFF;"
+		cat schema.sql
+	) | $MYSQL_CMD zabbix >> $logfile 2>&1
 	
-	# Secure functions block right after import completes successfully
-	sudo mysql -uroot -e "SET GLOBAL log_bin_trust_function_creators = 0;" >> $logfile 2>&1
+	$MYSQL_CMD zabbix < images.sql >> $logfile 2>&1
+	$MYSQL_CMD zabbix < data.sql >> $logfile 2>&1
+	
+	# Secure functions and restore strict checks block right after import completes successfully
+	$MYSQL_CMD -e "SET GLOBAL log_bin_trust_function_creators = 0; SET GLOBAL innodb_strict_mode = ON;" >> $logfile 2>&1
 
 	# Install dependencies
 	log "Installing Webserver and PHP extensions..."
