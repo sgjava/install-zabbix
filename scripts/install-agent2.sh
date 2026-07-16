@@ -1,40 +1,28 @@
 #!/bin/sh
 #
 # Created on June 7, 2020
+# Updated for Ubuntu 26.04
 #
-# @author: sgoldsmith
-#
-# Install Zabbix Agent 2 on Ubuntu 24.04. This may work on other versions and
-# Debian like distributions. Change variables below to suit your needs. This
-# script will detect previous install and upgrade the agent.
-#
-# Steven P. Goldsmith
-# sgjava@gmail.com
+# Install Zabbix Agent 2
 #
 
 # Zabbix Server URL
 zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/7.4/zabbix-7.4.9.tar.gz"
-
-# Just Zabbix server archive name
 zabbixarchive=$(basename "$zabbixurl")
-
-# Where to put Zabbix source
 srcdir="/usr/local/src"
-
-# Zabbix agent configuration
 zabbixconf="/usr/local/etc/zabbix_agent2.conf"
-
-# Zabbix host
 zabbixhost="192.168.1.69"
-
-# Temp dir for downloads, etc.
-tmpdir="$HOME/temp"
-
-# stdout and stderr for commands logged
+tmpdir="/tmp/zabbix-install"
 logfile="$PWD/install-agent2.log"
+
+# Ensure script is run as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Please run this script as root (sudo $0)"
+    exit 1
+fi
+
 rm -f $logfile
 
-# Simple logger
 log(){
 	timestamp=$(date +"%m-%d-%Y %k:%M:%S")
 	echo "$timestamp $1"
@@ -45,46 +33,43 @@ log "Removing temp dir $tmpdir"
 rm -rf "$tmpdir" >> $logfile 2>&1
 mkdir -p "$tmpdir" >> $logfile 2>&1
 
-# Download Zabbix source
 log "Downloading $zabbixarchive to $tmpdir"
 wget -q --directory-prefix=$tmpdir "$zabbixurl" >> $logfile 2>&1
-log "Extracting $zabbixarchive to $tmpdir"
 tar -xf "$tmpdir/$zabbixarchive" -C "$tmpdir" >> $logfile 2>&1
-# Remove .gz
-filename="${zabbixarchive%.*}"
-# Remove .tar
-filename="${filename%.*}"
-sudo -i mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
+filename="${zabbixarchive%.tar.gz}"
 
-# Install Zabbix Agent 2
+mv "$tmpdir/$filename" "${srcdir}" >> $logfile 2>&1
+
 log "Installing Zabbix Agent 2..."
 if [ -f /etc/systemd/system/zabbix-agent2.service ]; then
-	# Stop existing service
-	sudo -i service zabbix-agent2 stop >> $logfile 2>&1
+	service zabbix-agent2 stop >> $logfile 2>&1
 	log "Saving existing configuration to ${zabbixconf}.bak"
-	sudo -i mv "${zabbixconf}" "${zabbixconf}.bak"
+	mv "${zabbixconf}" "${zabbixconf}.bak"
 else
-	# Use latest golang
-	sudo -i groupadd zabbix >> $logfile 2>&1
-	sudo -i useradd -g zabbix -s /bin/bash zabbix >> $logfile 2>&1
-	sudo -i apt-get -y install build-essential pkg-config libpcre2-dev libz-dev golang-go >> $logfile 2>&1
+	groupadd zabbix 2>/dev/null || true
+	useradd -g zabbix -s /bin/bash zabbix 2>/dev/null || true
+	apt update >> $logfile 2>&1
+	# Updated to libpcre2-dev
+	apt-get -y install build-essential pkg-config libpcre2-dev libz-dev golang-go >> $logfile 2>&1
 fi
+
+# Ensure go is in path
+export PATH=$PATH:/usr/local/go/bin
+
 cd "${srcdir}/${filename}" >> $logfile 2>&1
-# Patch source to fix "plugins/proc/procfs_linux.go:248:6: constant 1099511627776 overflows int" on 32 bit systems
 log "Patching source to work on 32 bit platforms..."
 sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> $logfile 2>&1
-# Cnange configuration options here
-sudo -i ./configure --enable-agent2 --prefix=/usr/local >> $logfile 2>&1
-sudo -i make install >> $logfile 2>&1
-# Configure Zabbix agent 2
-sudo -i sed -i "s|Server=127.0.0.1|Server=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
-sudo -i sed -i "s|ServerActive=127.0.0.1|ServerActive=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
-sudo -i sed -i "s|Hostname=|#Hostname=|g" "$zabbixconf" >> $logfile 2>&1
 
-# Install Zabbix agent 2 service
+./configure --enable-agent2 --prefix=/usr/local >> $logfile 2>&1
+make install >> $logfile 2>&1
+
+sed -i "s|Server=127.0.0.1|Server=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
+sed -i "s|ServerActive=127.0.0.1|ServerActive=$zabbixhost|g" "$zabbixconf" >> $logfile 2>&1
+sed -i "s|Hostname=|#Hostname=|g" "$zabbixconf" >> $logfile 2>&1
+
 if [ ! -f /etc/systemd/system/zabbix-agent2.service ]; then
 	log "Installing Zabbix Agent 2 Service..."
-	sudo tee -a /etc/systemd/system/zabbix-agent2.service > /dev/null <<EOT
+	cat <<EOT > /etc/systemd/system/zabbix-agent2.service
 [Unit]
 Description=Zabbix Agent 2
 After=syslog.target network.target
@@ -99,12 +84,9 @@ PIDFile=/tmp/zabbix_agent2.pid
 [Install]
 WantedBy=multi-user.target
 EOT
-
-	sudo -i systemctl enable zabbix-agent2 >> $logfile 2>&1
+	systemctl enable zabbix-agent2 >> $logfile 2>&1
 fi
 
-# Start up Zabbix Agent 2
 log "Starting Zabbix Agent 2..."
-sudo -i service zabbix-agent2 start >> $logfile 2>&1
-log "Removing temp dir $tmpdir"
-rm -rf "$tmpdir" >> $logfile 2>&1
+systemctl start zabbix-agent2 >> $logfile 2>&1
+rm -rf "$tmpdir"
