@@ -1,13 +1,13 @@
-#!/bin/sh
+#!/usr/bin/sh
 #
 # Created on June 5, 2020
 # Refactored for absolute structural stability and clean database compilation
-# Updated for Ubuntu 26.04 compatibility
+# Updated for Ubuntu 26.04 compatibility (Swapped MySQL for MariaDB)
 #
 # @author: sgoldsmith
 #
 
-# MySQL root password
+# MariaDB/MySQL root password
 dbroot="rootZaq!2wsx"
 dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
@@ -45,6 +45,7 @@ if [ -f /etc/environment ]; then
 	. /etc/environment
 fi
 
+# MariaDB client binary fallback structure
 MYSQL_CMD="mysql -uroot -p${dbroot}"
 if ! mysql -uroot -p"${dbroot}" -e "SELECT 1;" >/dev/null 2>&1; then
 	MYSQL_CMD="mysql -uroot"
@@ -55,17 +56,26 @@ db_populated=$( $MYSQL_CMD -sse "SELECT COUNT(*) FROM information_schema.TABLES 
 if [ "$db_populated" != "1" ]; then
 	log "Performing pristine database installation sequence..."
 	apt-get -y update >> "$logfile" 2>&1
-	apt-get -y install mysql-server mysql-client >> "$logfile" 2>&1
+	# Ubuntu 26.04 package tracking for modern RDBMS engines
+	apt-get -y install mariadb-server mariadb-client >> "$logfile" 2>&1
 	
+	# Start database engine to process structural setups
+	systemctl start mariadb >> "$logfile" 2>&1
+	systemctl enable mariadb >> "$logfile" 2>&1
+
+	# MariaDB uses unix_socket for root by default; altering root password and building Zabbix users
 	$MYSQL_CMD <<_EOF_ >> "$logfile" 2>&1
 SET GLOBAL log_bin_trust_function_creators = 1;
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${dbroot}';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DROP DATABASE IF EXISTS zabbix;
 CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
-CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED WITH mysql_native_password BY '${dbzabbix}';
+CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 FLUSH PRIVILEGES;
 _EOF_
+
+	# Update command tracker since root now explicitly enforces the updated password
+	MYSQL_CMD="mysql -uroot -p${dbroot}"
 else
 	log "Existing populated environment discovered."
 fi
@@ -87,8 +97,8 @@ if [ "$db_populated" != "1" ]; then
 	$MYSQL_CMD -e "SET GLOBAL log_bin_trust_function_creators = 0; SET GLOBAL innodb_strict_mode = ON;" >> "$logfile" 2>&1
 
 	log "Installing Webserver, PHP, and Framework libraries..."
-	# Removed libpcre3-dev, using libpcre2-dev
-	apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev php-curl libgnutls28-dev >> "$logfile" 2>&1
+	# Swapped libmysqlclient-dev to libmariadb-dev for Ubuntu 26.04 engine links
+	apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate build-essential libmariadb-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev php-curl libgnutls28-dev >> "$logfile" 2>&1
 	
 	# Basic PHP ini adjustment
 	sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php/*/apache2/php.ini
@@ -103,11 +113,22 @@ log "Running Zabbix configure and build..."
 ./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> "$logfile" 2>&1
 make install >> "$logfile" 2>&1
 
-# Setup units
+# Configure Zabbix config files if freshly built
+if [ -f "$zabbixconf" ]; then
+	sed -i "s/# DBPassword=/DBPassword=${dbzabbix}/g" "$zabbixconf"
+fi
+
+# Ensure zabbix system user exists before starting systemd units
+if ! id "zabbix" >/dev/null 2>&1; then
+	log "Creating system user zabbix..."
+	useradd -r -s /bin/false zabbix
+fi
+
+# Setup units (Point targeting to mariadb service wrapper dependencies)
 cat <<EOT > /etc/systemd/system/zabbix-server.service
 [Unit]
 Description=Zabbix Server
-After=syslog.target network.target mysql.service
+After=syslog.target network.target mariadb.service
 [Service]
 Type=simple
 User=zabbix
