@@ -99,11 +99,13 @@ if [ "$db_populated" != "1" ]; then
 	fi
 
 	log "Updating PHP settings in $phpini"
-	sed -i 's/max_execution_time = 30/max_execution_time = 300/g' "$phpini" >> "$logfile" 2>&1
-	sed -i 's/memory_limit = 128M/memory_limit = 256M/g' "$phpini" >> "$logfile" 2>&1
-	sed -i 's/post_max_size = 8M/post_max_size = 32M/g' "$phpini" >> "$logfile" 2>&1
-	sed -i 's/max_input_time = 60/max_input_time = 300/g' "$phpini" >> "$logfile" 2>&1
-	sed -i "s|;date.timezone =|date.timezone = $phptz|g" "$phpini" >> "$logfile" 2>&1
+	
+	# Match key, optional spaces, optional existing value, and replace or uncomment entirely
+	sed -i 's/^\s*;*\(max_execution_time\s*=\s*\).*/\1300/' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/^\s*;*\(memory_limit\s*=\s*\).*/\1256M/' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/^\s*;*\(post_max_size\s*=\s*\).*/\132M/' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/^\s*;*\(max_input_time\s*=\s*\).*/\1300/' "$phpini" >> "$logfile" 2>&1
+	sed -i "s|^\s*;*\(date.timezone\s*=\s*\).*|\1$phptz|" "$phpini" >> "$logfile" 2>&1
 	
 	systemctl restart apache2 >> "$logfile" 2>&1
 
