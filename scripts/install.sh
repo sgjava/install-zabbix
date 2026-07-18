@@ -187,10 +187,10 @@ cd "${srcdir}/${filename}" >> "$logfile" 2>&1
 log "Patching procfs_linux.go to work on 32 bit platforms..."
 sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go
 
-# Patch db.c layout to support Zabbix 7.4.9 library relocations (Moved from zbxdb to zbxdbwrap)
-log "Patching db.c to prevent spamming log and fix modern MariaDB compile errors..."
-sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdbwrap/db.c
-sed -i '/Cannot set MySQL reconnect option/d' src/libs/zbxdbwrap/db.c
+# Patch db.c to prevent spamming log and fix modern MariaDB compile errors...
+log "Patching db.c to prevent spamming log..."
+sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdbhigh/db.c
+sed -i '/Cannot set MySQL reconnect option/d' src/libs/zbxdbhigh/db.c
 
 log "Running Zabbix configure and build..."
 ./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> "$logfile" 2>&1
