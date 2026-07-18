@@ -59,10 +59,10 @@ if [ "$db_populated" != "1" ]; then
 	
 	$MYSQL_CMD <<_EOF_ >> "$logfile" 2>&1
 SET GLOBAL log_bin_trust_function_creators = 1;
-ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '${dbroot}';
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DROP DATABASE IF EXISTS zabbix;
 CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
-CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED WITH mysql_native_password BY '${dbzabbix}';
+CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 FLUSH PRIVILEGES;
 _EOF_
