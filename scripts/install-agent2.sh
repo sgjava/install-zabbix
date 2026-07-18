@@ -1,6 +1,7 @@
 #!/bin/sh
 #
 # Created on June 7, 2020
+#
 # Updated for Ubuntu 26.04
 #
 # Install Zabbix Agent 2
