@@ -2,7 +2,7 @@
 #
 # Created on June 5, 2020
 # Refactored for absolute structural stability and clean database compilation
-# Updated for Ubuntu 26.04 compatibility
+# Updated for Ubuntu 26.04 compatibility and verified PHP Front End deployment
 #
 # @author: sgoldsmith
 #
@@ -64,6 +64,8 @@ DROP DATABASE IF EXISTS zabbix;
 CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
 CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
+CREATE USER IF NOT EXISTS 'zbx_monitor'@'localhost' IDENTIFIED BY '${monzabbix}';
+GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_monitor'@'localhost';
 FLUSH PRIVILEGES;
 _EOF_
 else
@@ -87,32 +89,81 @@ if [ "$db_populated" != "1" ]; then
 	$MYSQL_CMD -e "SET GLOBAL log_bin_trust_function_creators = 0; SET GLOBAL innodb_strict_mode = ON;" >> "$logfile" 2>&1
 
 	log "Installing Webserver, PHP, and Framework libraries..."
-	# Removed libpcre3-dev, using libpcre2-dev
+	# Ubuntu 26.04 clean package set (no libpcre3-dev)
 	apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev php-curl libgnutls28-dev >> "$logfile" 2>&1
 	
-	# Basic PHP ini adjustment
-	sed -i 's/max_execution_time = 30/max_execution_time = 300/g' /etc/php/*/apache2/php.ini
-	systemctl restart apache2
+	# Locate php.ini dynamically and adjust configurations safely
+	phpini=$(locate php.ini 2>&1 | grep "apache2" | head -n 1)
+	if [ -z "$phpini" ] || [ ! -f "$phpini" ]; then
+		phpini="/etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;'/)/apache2/php.ini"
+	fi
+
+	log "Updating PHP settings in $phpini"
+	sed -i 's/max_execution_time = 30/max_execution_time = 300/g' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/memory_limit = 128M/memory_limit = 256M/g' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/post_max_size = 8M/post_max_size = 32M/g' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/max_input_time = 60/max_input_time = 300/g' "$phpini" >> "$logfile" 2>&1
+	sed -i "s|;date.timezone =|date.timezone = $phptz|g" "$phpini" >> "$logfile" 2>&1
+	
+	systemctl restart apache2 >> "$logfile" 2>&1
+
+	# Handle Zabbix system user setup
+	if ! getent group zabbix >/dev/null; then
+		addgroup --system --quiet zabbix >> "$logfile" 2>&1
+	fi
+	if ! getent passwd zabbix >/dev/null; then
+		adduser --quiet --system --disabled-login --ingroup zabbix --home /var/lib/zabbix --no-create-home zabbix >> "$logfile" 2>&1
+	fi
+	mkdir -m u=rwx,g=rwx,o= -p /var/lib/zabbix >> "$logfile" 2>&1
+	chown zabbix:zabbix /var/lib/zabbix >> "$logfile" 2>&1
+else
+	# Existing installation fallback cleanup for UI replacement
+	log "Cleaning up old front end files..."
+	rm -rf /var/www/html/zabbix
 fi	
 
 cd "${srcdir}/${filename}" >> "$logfile" 2>&1
-sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go
-sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdbhigh/db.c
+sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> "$logfile" 2>&1
+
+# Apply db.c patch safely checking paths dynamically
+if [ -f src/libs/zbxdbhigh/db.c ]; then
+	sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdbhigh/db.c >> "$logfile" 2>&1
+elif [ -f src/libs/zbxdb/db.c ]; then
+	sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdb/db.c >> "$logfile" 2>&1
+fi
 
 log "Running Zabbix configure and build..."
 ./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> "$logfile" 2>&1
 make install >> "$logfile" 2>&1
+
+# Post-build Zabbix daemon configurations
+chmod ug+s /usr/bin/fping >> "$logfile" 2>&1
+chmod ug+s /usr/bin/fping6 >> "$logfile" 2>&1
+if [ -f "$zabbixconf" ]; then
+	sed -i "s/# DBPassword=/DBPassword=$dbzabbix/g" "$zabbixconf" >> "$logfile" 2>&1
+	sed -i "s|# FpingLocation=/usr/sbin/fping|FpingLocation=/usr/bin/fping|g" "$zabbixconf" >> "$logfile" 2>&1
+	sed -i "s|# Fping6Location=/usr/sbin/fping6|Fping6Location=/usr/bin/fping6|g" "$zabbixconf" >> "$logfile" 2>&1
+	sed -i "s/# StartPingers=1/StartPingers=10/g" "$zabbixconf" >> "$logfile" 2>&1
+fi
+
+# Deploying Zabbix Front End UI
+log "Installing Zabbix PHP Front End..."
+mkdir -p /var/www/html/zabbix >> "$logfile" 2>&1
+cp -r "${srcdir}/${filename}/ui/"* /var/www/html/zabbix/ >> "$logfile" 2>&1
+chown -R www-data:www-data /var/www/html/zabbix >> "$logfile" 2>&1
 
 # Setup units
 cat <<EOT > /etc/systemd/system/zabbix-server.service
 [Unit]
 Description=Zabbix Server
 After=syslog.target network.target mysql.service
+
 [Service]
 Type=simple
 User=zabbix
 ExecStart=/usr/local/sbin/zabbix_server
 RemainAfterExit=yes
+
 [Install]
 WantedBy=multi-user.target
 EOT
@@ -121,17 +172,22 @@ cat <<EOT > /etc/systemd/system/zabbix-agent2.service
 [Unit]
 Description=Zabbix Agent 2
 After=syslog.target network.target
+
 [Service]
 Type=simple
 User=zabbix
 ExecStart=/usr/local/sbin/zabbix_agent2 -c /usr/local/etc/zabbix_agent2.conf
 RemainAfterExit=yes
+
 [Install]
 WantedBy=multi-user.target
 EOT
 
 systemctl daemon-reload
-systemctl enable zabbix-server zabbix-agent2
-systemctl restart zabbix-server zabbix-agent2
+systemctl enable zabbix-server zabbix-agent2 >> "$logfile" 2>&1
+systemctl restart zabbix-server zabbix-agent2 >> "$logfile" 2>&1
+
+log "Removing temp dir $tmpdir"
+rm -rf "$tmpdir" >> "$logfile" 2>&1
 
 log "Zabbix Framework setup finalized."
