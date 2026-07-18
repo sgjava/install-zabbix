@@ -93,20 +93,22 @@ if [ "$db_populated" != "1" ]; then
 	# Ubuntu 26.04 clean package set (no libpcre3-dev)
 	apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev php-curl libgnutls28-dev >> "$logfile" 2>&1
 	
-	# Locate php.ini dynamically and adjust configurations safely
-	phpini=$(locate php.ini 2>&1 | grep "apache2" | head -n 1)
+# Locate php.ini dynamically and adjust configurations safely
+	phpini=$(locate php.ini 2>/dev/null | grep "apache2" | head -n 1)
 	if [ -z "$phpini" ] || [ ! -f "$phpini" ]; then
-		phpini="/etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;'/)/apache2/php.ini"
+		phpini="/etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/apache2/php.ini"
 	fi
 
 	log "Updating PHP settings in $phpini"
 	
-	# Match key, optional spaces, optional existing value, and replace or uncomment entirely
-	sed -i 's/^\s*;*\(max_execution_time\s*=\s*\).*/\1300/' "$phpini" >> "$logfile" 2>&1
-	sed -i 's/^\s*;*\(memory_limit\s*=\s*\).*/\1256M/' "$phpini" >> "$logfile" 2>&1
-	sed -i 's/^\s*;*\(post_max_size\s*=\s*\).*/\132M/' "$phpini" >> "$logfile" 2>&1
-	sed -i 's/^\s*;*\(max_input_time\s*=\s*\).*/\1300/' "$phpini" >> "$logfile" 2>&1
-	sed -i "s|^\s*;*\(date.timezone\s*=\s*\).*|\1$phptz|" "$phpini" >> "$logfile" 2>&1
+	# Strip any hidden carriage returns first to avoid sed match failures
+	sed -i 's/\r//g' "$phpini" >> "$logfile" 2>&1
+	
+	# Handle standard active keys or commented keys explicitly
+	sed -i 's/^[;[:space:]]*max_execution_time[[:space:]]*=.*/max_execution_time = 300/' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/^[;[:space:]]*max_input_time[[:space:]]*=.*/max_input_time = 300/' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/^[;[:space:]]*post_max_size[[:space:]]*=.*/post_max_size = 16M/' "$phpini" >> "$logfile" 2>&1
+	sed -i 's/^[;[:space:]]*memory_limit[[:space:]]*=.*/memory_limit = 256M/' "$phpini" >> "$logfile" 2>&1
 	
 	systemctl restart apache2 >> "$logfile" 2>&1
 
