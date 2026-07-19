@@ -56,7 +56,7 @@ db_populated=$( $MYSQL_CMD -sse "SELECT COUNT(*) FROM information_schema.TABLES 
 if [ "$db_populated" != "1" ]; then
 	log "Performing pristine database installation sequence..."
 	apt-get -y update >> "$logfile" 2>&1
-	apt-get -y install mysql-server mysql-client >> "$logfile" 2>&1
+	apt-get -y install mariadb-server mariadb-client >> "$logfile" 2>&1
 	
 	$MYSQL_CMD <<_EOF_ >> "$logfile" 2>&1
 SET GLOBAL log_bin_trust_function_creators = 1;
@@ -90,8 +90,8 @@ if [ "$db_populated" != "1" ]; then
 	$MYSQL_CMD -e "SET GLOBAL log_bin_trust_function_creators = 0; SET GLOBAL innodb_strict_mode = ON;" >> "$logfile" 2>&1
 
 	log "Installing Webserver, PHP, and Framework libraries..."
-	# Ubuntu 26.04 clean package set (no libpcre3-dev)
-	apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate build-essential libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev php-curl libgnutls28-dev >> "$logfile" 2>&1
+	# Ubuntu 26.04 clean package set (using default-libmysqlclient-dev for MariaDB build headers)
+	apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate build-essential default-libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev php-curl libgnutls28-dev >> "$logfile" 2>&1
 	
 # Locate php.ini dynamically and adjust configurations safely
 	phpini=$(locate php.ini 2>/dev/null | grep "apache2" | head -n 1)
@@ -161,7 +161,7 @@ chown -R www-data:www-data /var/www/html/zabbix >> "$logfile" 2>&1
 cat <<EOT > /etc/systemd/system/zabbix-server.service
 [Unit]
 Description=Zabbix Server
-After=syslog.target network.target mysql.service
+After=syslog.target network.target mariadb.service
 
 [Service]
 Type=simple
