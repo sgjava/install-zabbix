@@ -1,19 +1,15 @@
 #!/bin/sh
 #
-# Created on June 5, 2020
-#
-# Refactored for absolute structural stability and clean database compilation
-# Updated for Ubuntu 26.04 compatibility and verified PHP Front End deployment
-#
-# @author: sgoldsmith
+# Refactored for Ubuntu compatibility, proper MariaDB auth handling, 
+# and automated zabbix.conf.php frontend deployment.
 #
 
-# MySQL root password
+# Passwords
 dbroot="rootZaq!2wsx"
 dbzabbix="zabbixZaq!2wsx"
 monzabbix="monzabbixZaq!2wsx"
 
-# Zabbix Server URL
+# Zabbix Server Source
 zabbixurl="https://cdn.zabbix.com/zabbix/sources/stable/7.4/zabbix-7.4.9.tar.gz"
 zabbixarchive=$(basename "$zabbixurl")
 srcdir="/usr/local/src"
@@ -46,34 +42,43 @@ if [ -f /etc/environment ]; then
 	. /etc/environment
 fi
 
-MYSQL_CMD="mysql -uroot -p${dbroot}"
-if ! mysql -uroot -p"${dbroot}" -e "SELECT 1;" >/dev/null 2>&1; then
+# Step 1: Install MariaDB Server first before running SQL queries
+log "Installing MariaDB Database Server..."
+apt-get -y update >> "$logfile" 2>&1
+apt-get -y install mariadb-server mariadb-client >> "$logfile" 2>&1
+systemctl start mariadb >> "$logfile" 2>&1
+
+# Determine MySQL root auth method
+if mysql -uroot -e "SELECT 1;" >/dev/null 2>&1; then
 	MYSQL_CMD="mysql -uroot"
+else
+	MYSQL_CMD="mysql -uroot -p${dbroot}"
 fi
 
 db_populated=$( $MYSQL_CMD -sse "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='zabbix' AND TABLE_NAME='dbversion';" 2>/dev/null )
 
 if [ "$db_populated" != "1" ]; then
 	log "Performing pristine database installation sequence..."
-	apt-get -y update >> "$logfile" 2>&1
-	apt-get -y install mariadb-server mariadb-client >> "$logfile" 2>&1
 	
 	$MYSQL_CMD <<_EOF_ >> "$logfile" 2>&1
 SET GLOBAL log_bin_trust_function_creators = 1;
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DROP DATABASE IF EXISTS zabbix;
-CREATE DATABASE zabbix CHARACTER SET UTF8 COLLATE UTF8_BIN;
+CREATE DATABASE zabbix CHARACTER SET UTF8MB4 COLLATE UTF8MB4_BIN;
 CREATE USER IF NOT EXISTS 'zabbix'@'localhost' IDENTIFIED BY '${dbzabbix}';
 GRANT ALL PRIVILEGES ON zabbix.* TO 'zabbix'@'localhost';
 CREATE USER IF NOT EXISTS 'zbx_monitor'@'localhost' IDENTIFIED BY '${monzabbix}';
 GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_monitor'@'localhost';
 FLUSH PRIVILEGES;
 _EOF_
+
+	# Update command to use root password now that it has been set
+	MYSQL_CMD="mysql -uroot -p${dbroot}"
 else
 	log "Existing populated environment discovered."
 fi
 
-# Download/Extract
+# Step 2: Download & Extract Zabbix Source
 log "Downloading $zabbixarchive to $tmpdir"
 wget -q --directory-prefix="$tmpdir" "$zabbixurl" >> "$logfile" 2>&1
 tar -xf "$tmpdir/$zabbixarchive" -C "$tmpdir" >> "$logfile" 2>&1
@@ -83,36 +88,34 @@ rm -rf "${srcdir}/${filename}"
 mv "$tmpdir/$filename" "${srcdir}" >> "$logfile" 2>&1
 
 if [ "$db_populated" != "1" ]; then
+	log "Importing Zabbix SQL Schemas..."
 	cd "${srcdir}/${filename}/database/mysql" >> "$logfile" 2>&1
-	(echo "SET GLOBAL innodb_strict_mode = OFF; SET SESSION innodb_strict_mode = OFF;"; cat schema.sql) | $MYSQL_CMD zabbix >> "$logfile" 2>&1
-	$MYSQL_CMD zabbix < images.sql >> "$logfile" 2>&1
-	$MYSQL_CMD zabbix < data.sql >> "$logfile" 2>&1
-	$MYSQL_CMD -e "SET GLOBAL log_bin_trust_function_creators = 0; SET GLOBAL innodb_strict_mode = ON;" >> "$logfile" 2>&1
+	
+	# Import schemas using zabbix credentials
+	mysql -uzabbix -p"${dbzabbix}" zabbix < schema.sql >> "$logfile" 2>&1
+	mysql -uzabbix -p"${dbzabbix}" zabbix < images.sql >> "$logfile" 2>&1
+	mysql -uzabbix -p"${dbzabbix}" zabbix < data.sql >> "$logfile" 2>&1
+	
+	$MYSQL_CMD -e "SET GLOBAL log_bin_trust_function_creators = 0;" >> "$logfile" 2>&1
 
 	log "Installing Webserver, PHP, and Framework libraries..."
-	# Ubuntu 26.04 clean package set (using default-libmysqlclient-dev for MariaDB build headers)
 	apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate build-essential default-libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev php-curl libgnutls28-dev >> "$logfile" 2>&1
 	
-# Locate php.ini dynamically and adjust configurations safely
 	phpini=$(locate php.ini 2>/dev/null | grep "apache2" | head -n 1)
 	if [ -z "$phpini" ] || [ ! -f "$phpini" ]; then
 		phpini="/etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/apache2/php.ini"
 	fi
 
 	log "Updating PHP settings in $phpini"
-	
-	# Strip any hidden carriage returns first to avoid sed match failures
 	sed -i 's/\r//g' "$phpini" >> "$logfile" 2>&1
-	
-	# Handle standard active keys or commented keys explicitly
 	sed -i 's/^[;[:space:]]*max_execution_time[[:space:]]*=.*/max_execution_time = 300/' "$phpini" >> "$logfile" 2>&1
 	sed -i 's/^[;[:space:]]*max_input_time[[:space:]]*=.*/max_input_time = 300/' "$phpini" >> "$logfile" 2>&1
 	sed -i 's/^[;[:space:]]*post_max_size[[:space:]]*=.*/post_max_size = 16M/' "$phpini" >> "$logfile" 2>&1
 	sed -i 's/^[;[:space:]]*memory_limit[[:space:]]*=.*/memory_limit = 256M/' "$phpini" >> "$logfile" 2>&1
+	sed -i "s|^[;[:space:]]*date.timezone[[:space:]]*=.*|date.timezone = ${phptz}|" "$phpini" >> "$logfile" 2>&1
 	
 	systemctl restart apache2 >> "$logfile" 2>&1
 
-	# Handle Zabbix system user setup
 	if ! getent group zabbix >/dev/null; then
 		addgroup --system --quiet zabbix >> "$logfile" 2>&1
 	fi
@@ -122,15 +125,13 @@ if [ "$db_populated" != "1" ]; then
 	mkdir -m u=rwx,g=rwx,o= -p /var/lib/zabbix >> "$logfile" 2>&1
 	chown zabbix:zabbix /var/lib/zabbix >> "$logfile" 2>&1
 else
-	# Existing installation fallback cleanup for UI replacement
 	log "Cleaning up old front end files..."
 	rm -rf /var/www/html/zabbix
 fi	
 
+# Step 3: Build & Install Zabbix
 cd "${srcdir}/${filename}" >> "$logfile" 2>&1
-sed -i 's/strconv.Atoi(strings.TrimSpace(line\[:len(line)-2\]))/strconv.ParseInt(strings.TrimSpace(line[:len(line)-2]),10,64)/' src/go/plugins/proc/procfs_linux.go >> "$logfile" 2>&1
 
-# Apply db.c patch safely checking paths dynamically
 if [ -f src/libs/zbxdbhigh/db.c ]; then
 	sed -i '/MYSQL_OPT_RECONNECT/d' src/libs/zbxdbhigh/db.c >> "$logfile" 2>&1
 elif [ -f src/libs/zbxdb/db.c ]; then
@@ -138,10 +139,10 @@ elif [ -f src/libs/zbxdb/db.c ]; then
 fi
 
 log "Running Zabbix configure and build..."
-./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --enable-java --prefix=/usr/local >> "$logfile" 2>&1
+./configure --enable-server --enable-agent --enable-agent2 --enable-ipv6 --with-mysql --with-openssl --with-net-snmp --with-openipmi --with-libcurl --with-libxml2 --with-ssh2 --with-ldap --prefix=/usr/local >> "$logfile" 2>&1
 make install >> "$logfile" 2>&1
 
-# Post-build Zabbix daemon configurations
+# Configuration Updates
 chmod ug+s /usr/bin/fping >> "$logfile" 2>&1
 chmod ug+s /usr/bin/fping6 >> "$logfile" 2>&1
 if [ -f "$zabbixconf" ]; then
@@ -151,13 +152,32 @@ if [ -f "$zabbixconf" ]; then
 	sed -i "s/# StartPingers=1/StartPingers=10/g" "$zabbixconf" >> "$logfile" 2>&1
 fi
 
-# Deploying Zabbix Front End UI
+# Step 4: Deploy PHP Frontend with generated config
 log "Installing Zabbix PHP Front End..."
 mkdir -p /var/www/html/zabbix >> "$logfile" 2>&1
 cp -r "${srcdir}/${filename}/ui/"* /var/www/html/zabbix/ >> "$logfile" 2>&1
+
+# Automatically create the frontend config file
+cat <<EOT > /var/www/html/zabbix/conf/zabbix.conf.php
+<?php
+$DB['TYPE']     = 'MYSQL';
+$DB['SERVER']   = 'localhost';
+$DB['PORT']     = '0';
+$DB['DATABASE'] = 'zabbix';
+$DB['USER']     = 'zabbix';
+$DB['PASSWORD'] = '${dbzabbix}';
+$DB['SCHEMA']   = '';
+
+$ZBX_SERVER      = 'localhost';
+$ZBX_SERVER_PORT = '10051';
+$ZBX_SERVER_NAME = 'Zabbix Server';
+
+$IMAGE_FORMAT_DEFAULT = IMAGE_FORMAT_PNG;
+EOT
+
 chown -R www-data:www-data /var/www/html/zabbix >> "$logfile" 2>&1
 
-# Setup units
+# Step 5: Systemd Setup & Service Start
 cat <<EOT > /etc/systemd/system/zabbix-server.service
 [Unit]
 Description=Zabbix Server
@@ -166,8 +186,8 @@ After=syslog.target network.target mariadb.service
 [Service]
 Type=simple
 User=zabbix
-ExecStart=/usr/local/sbin/zabbix_server
-RemainAfterExit=yes
+ExecStart=/usr/local/sbin/zabbix_server -f
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
@@ -182,7 +202,7 @@ After=syslog.target network.target
 Type=simple
 User=zabbix
 ExecStart=/usr/local/sbin/zabbix_agent2 -c /usr/local/etc/zabbix_agent2.conf
-RemainAfterExit=yes
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
@@ -190,7 +210,7 @@ EOT
 
 systemctl daemon-reload
 systemctl enable zabbix-server zabbix-agent2 >> "$logfile" 2>&1
-systemctl restart zabbix-server zabbix-agent2 >> "$logfile" 2>&1
+systemctl restart zabbix-server zabbix-agent2 apache2 >> "$logfile" 2>&1
 
 log "Removing temp dir $tmpdir"
 rm -rf "$tmpdir" >> "$logfile" 2>&1
