@@ -46,19 +46,23 @@ if [ -f /etc/environment ]; then
 	. /etc/environment
 fi
 
-MYSQL_CMD="mysql -uroot -p${dbroot}"
-if ! mysql -uroot -p"${dbroot}" -e "SELECT 1;" >/dev/null 2>&1; then
-	MYSQL_CMD="mysql -uroot"
+# Pre-check database status safely
+if command -v mysql >/dev/null 2>&1 && mysql -uroot -p"${dbroot}" -e "SELECT 1;" >/dev/null 2>&1; then
+	MYSQL_CMD="mysql -uroot -p${dbroot}"
+	db_populated=$( $MYSQL_CMD -sse "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='zabbix' AND TABLE_NAME='dbversion';" 2>/dev/null )
+else
+	db_populated="0"
 fi
-
-db_populated=$( $MYSQL_CMD -sse "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='zabbix' AND TABLE_NAME='dbversion';" 2>/dev/null )
 
 if [ "$db_populated" != "1" ]; then
 	log "Performing pristine database installation sequence..."
 	apt-get -y update >> "$logfile" 2>&1
 	apt-get -y install mariadb-server mariadb-client >> "$logfile" 2>&1
 	
-	$MYSQL_CMD <<_EOF_ >> "$logfile" 2>&1
+	systemctl start mariadb >> "$logfile" 2>&1
+
+	# Connect via local unix_socket first (default on new installs) to set up root auth & users
+	mysql -u root <<_EOF_ >> "$logfile" 2>&1
 SET GLOBAL log_bin_trust_function_creators = 1;
 ALTER USER 'root'@'localhost' IDENTIFIED BY '${dbroot}';
 DROP DATABASE IF EXISTS zabbix;
@@ -69,6 +73,9 @@ CREATE USER IF NOT EXISTS 'zbx_monitor'@'localhost' IDENTIFIED BY '${monzabbix}'
 GRANT USAGE,REPLICATION CLIENT,PROCESS,SHOW DATABASES,SHOW VIEW ON *.* TO 'zbx_monitor'@'localhost';
 FLUSH PRIVILEGES;
 _EOF_
+
+	# Update command handle for subsequent calls using password
+	MYSQL_CMD="mysql -uroot -p${dbroot}"
 else
 	log "Existing populated environment discovered."
 fi
@@ -99,7 +106,7 @@ if [ "$db_populated" != "1" ]; then
 	# Ubuntu 26.04 clean package set (using default-libmysqlclient-dev for MariaDB build headers)
 	apt-get -y install fping apache2 php libapache2-mod-php php-cli php-mysql php-mbstring php-gd php-xml php-bcmath php-ldap plocate build-essential default-libmysqlclient-dev libssl-dev libsnmp-dev libevent-dev pkg-config golang-go libopenipmi-dev libcurl4-openssl-dev libxml2-dev libssh2-1-dev libpcre2-dev php-curl libgnutls28-dev >> "$logfile" 2>&1
 	
-# Locate php.ini dynamically and adjust configurations safely
+	# Locate php.ini dynamically and adjust configurations safely
 	phpini=$(locate php.ini 2>/dev/null | grep "apache2" | head -n 1)
 	if [ -z "$phpini" ] || [ ! -f "$phpini" ]; then
 		phpini="/etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/apache2/php.ini"
@@ -191,7 +198,7 @@ ExecStart=/usr/local/sbin/zabbix_agent2 -c /usr/local/etc/zabbix_agent2.conf
 RemainAfterExit=yes
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=multi-target
 EOT
 
 systemctl daemon-reload
