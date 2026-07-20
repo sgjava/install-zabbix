@@ -47,7 +47,7 @@ and `/usr/local/etc/zabbix_agent2.conf.bak`
 * `cd ~/install-zabbix/scripts`
 * Change configuration values as needed
 * `./install-java.sh`
-* `./install.sh`
+* `sudo ./install.sh`
 * Check log file for errors
 * Navigate to http://hostname/zabbix
 * Get DB password from script and finalize front end configuration
