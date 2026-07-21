@@ -179,8 +179,9 @@ After=syslog.target network.target mariadb.service
 [Service]
 Type=simple
 User=zabbix
-ExecStart=/usr/local/sbin/zabbix_server
-RemainAfterExit=yes
+ExecStart=/usr/local/sbin/zabbix_server -f
+Restart=on-failure
+RestartSec=10s
 
 [Install]
 WantedBy=multi-user.target
@@ -195,10 +196,11 @@ After=syslog.target network.target
 Type=simple
 User=zabbix
 ExecStart=/usr/local/sbin/zabbix_agent2 -c /usr/local/etc/zabbix_agent2.conf
-RemainAfterExit=yes
+Restart=on-failure
+RestartSec=10s
 
 [Install]
-WantedBy=multi-target
+WantedBy=multi-user.target
 EOT
 
 systemctl daemon-reload

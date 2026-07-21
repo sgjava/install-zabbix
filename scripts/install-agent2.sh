@@ -74,14 +74,14 @@ if [ ! -f /etc/systemd/system/zabbix-agent2.service ]; then
 [Unit]
 Description=Zabbix Agent 2
 After=syslog.target network.target
- 
+
 [Service]
 Type=simple
 User=zabbix
 ExecStart=/usr/local/sbin/zabbix_agent2 -c /usr/local/etc/zabbix_agent2.conf
-RemainAfterExit=yes
-PIDFile=/tmp/zabbix_agent2.pid
- 
+Restart=on-failure
+RestartSec=10s
+
 [Install]
 WantedBy=multi-user.target
 EOT
