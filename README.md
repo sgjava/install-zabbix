@@ -59,7 +59,7 @@ To stop and start Zabbix server
 
 If graphs times are off in UI
 * `sudo nano /etc/php/8.5/apache2/php.ini`
-* `date.timezone = America/New_York` (use you local TZ)
+* `date.timezone = America/New_York` (use your local TZ)
 * `sudo systemctl restart apache2`
 
 ## Move DB script
