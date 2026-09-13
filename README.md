@@ -57,6 +57,11 @@ To stop and start Zabbix server
 * `sudo service zabbix-server stop`
 * `sudo service zabbix-server start`
 
+If graphs times are off in UI
+* `sudo nano /etc/php/8.5/apache2/php.ini`
+* `date.timezone = America/New_York` (use you local TZ)
+* `sudo systemctl restart apache2`
+
 ## Move DB script
 This assumes you ran install.sh above. It's handy to move the MySQL data directory
 to a NFS share if you are running Zabbix Server off an SD card for instance.
